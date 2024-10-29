@@ -1,0 +1,16 @@
+#!/bin/bash
+
+#PBS -A lmsysbio
+#PBS -l nodes=1:ppn=36
+#PBS -l walltime=5:00:00
+#PBS -l mem=180gb
+
+cd /staging/leuven/stg_00106/PlasticDaphnia/reads/host+microbiome/host_depleted
+
+module purge
+module load SAMtools/1.9-foss-2018a
+
+while IFS= read -r id; do
+	samtools view -bS "${id}_mapped_and_unmapped.sam" > "${id}_mapped_and_unmapped.bam"
+done < ./Daphnia_samples.txt
+

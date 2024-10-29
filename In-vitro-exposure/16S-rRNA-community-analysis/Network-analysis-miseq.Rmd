@@ -1,0 +1,147 @@
+---
+title: "Preparation for network analysis"
+output: html_notebook
+---
+
+```{r}
+library(phyloseq)
+library(vegan)
+```
+
+
+Load ps-object and metadata:
+```{r}
+#Load phyloseq (rarefied)
+ps_mic = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/ps_rare_daphnia_decontam.rds")
+
+#load meta
+meta = read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/decontaminated_set/merged_meta.csv",row.names = 1)
+```
+
+
+```{r}
+# Extract common sample IDs
+common_sample_ids <- intersect(sample_names(ps_mic), row.names(meta))
+# Subset metadata to include only common sample IDs
+filtered_meta <- meta[common_sample_ids, ]
+# Assign filtered metadata as sample_data for ps_bac
+sample_data(ps_mic) <- filtered_meta
+filtered_meta <- data.frame(sample_data(ps_mic))
+```
+Separate BP/DG
+```{r}
+BP_ps <- subset_samples(ps_mic, Pond == "BP" | Exposure_time == "Pre" | Exposure_time == "Pre-Env")
+DG_ps <- subset_samples(ps_mic, Pond == "DG" | Exposure_time == "Pre" | Exposure_time == "Pre-Env")
+```
+
+Load a prevfilter function
+
+```{r}
+prevFilter =function(phy, prev){
+  prev0 = apply(X = otu_table(phy),
+                MARGIN = ifelse(taxa_are_rows(phy), yes = 1, no = 2),
+                FUN = function(x){sum(x > 0)})
+  prevalenceThreshold = prev * nsamples(phy)
+  nonrares = prune_taxa((prev0 > prevalenceThreshold), phy)
+  rares = prune_taxa((prev0 < prevalenceThreshold), phy)
+  rares = merge_taxa(rares, taxa_names(rares))
+  otus = data.frame(otu_table(nonrares))
+  otus = rbind(otus, data.frame(otu_table(rares)))
+  tax = data.frame(tax_table(nonrares), stringsAsFactors = FALSE)
+  tax = rbind(tax, rep("Other", 7))
+  rownames(otus) <- c(taxa_names(nonrares), 'Bin')
+  rownames(tax) <- c(taxa_names(nonrares), 'Bin')
+  newphy = phyloseq(otu_table(otus, taxa_are_rows = TRUE), sample_data(phy), tax_table(as.matrix(tax)))
+  return(newphy)
+}
+```
+
+
+Filter rare taxa
+```{r}
+ps_BP_filt = prevFilter(BP_ps,0.1) #1% Present in minimum 8 samples
+ps_DG_filt = prevFilter(DG_ps,0.1) #1% Present in minimum 5 samples
+```
+Extract tables
+```{r}
+otus_BP = data.frame(otu_table(ps_BP_filt))
+otus_DG = data.frame(otu_table(ps_DG_filt))
+taxa_BP = data.frame(tax_table(ps_BP_filt))
+taxa_DG = data.frame(tax_table(ps_DG_filt))
+meta_BP=data.frame(sample_data(ps_BP_filt))
+meta_DG=data.frame(sample_data(ps_DG_filt))
+```
+
+Annotate taxa with their source: Pre-exp or Post-exposure : BP
+```{r}
+# Initialize vectors to store the new OTU IDs with annotations
+annotated_otu_ids <- character(nrow(otus_BP))
+
+# Loop through each OTU
+for (i in 1:nrow(otus_BP)) {
+  # Find samples where the OTU is present
+  present_samples <- colnames(otus_BP)[which(otus_BP[i, ] > 0)]
+  
+  # Determine ponds corresponding to those samples
+  ponds <- unique(meta_BP$Exposure_time[rownames(meta_BP) %in% present_samples])
+  
+  # Generate annotation based on pond presence
+  annotation <- ifelse(all(c("Post", "Pre") %in% ponds), "Post+Pre",
+                       ifelse("Post" %in% ponds, "Post",
+                              ifelse("Pre" %in% ponds, "Pre", 
+                                   ifelse("Pre-Env" %in% ponds,"Pre-Env","All"))))
+  
+  # Construct new OTU ID
+  annotated_otu_ids[i] <- annotation
+}
+
+# Update row names with annotated OTU IDs
+taxa_BP$Source <- annotated_otu_ids
+```
+
+Annotate taxa with their source: Pre-exp or Post-exposure :DG
+```{r}
+# Initialize vectors to store the new OTU IDs with annotations
+annotated_otu_ids <- character(nrow(otus_DG))
+
+# Loop through each OTU
+for (i in 1:nrow(otus_DG)) {
+  # Find samples where the OTU is present
+  present_samples <- colnames(otus_DG)[which(otus_DG[i, ] > 0)]
+  
+  # Determine ponds corresponding to those samples
+  ponds <- unique(meta_DG$Exposure_time[rownames(meta_DG) %in% present_samples])
+  
+  # Generate annotation based on pond presence
+  annotation <- ifelse(all(c("Post", "Pre") %in% ponds), "Post+Pre",
+                       ifelse("Post" %in% ponds, "Post",
+                              ifelse("Pre" %in% ponds, "Pre", 
+                                   ifelse("Pre-Env" %in% ponds,"Pre-Env","All"))))
+  
+  # Construct new OTU ID
+  annotated_otu_ids[i] <- annotation
+}
+
+# Update row names with annotated OTU IDs
+taxa_DG$Source  <- annotated_otu_ids
+```
+
+For abundance scaling: BP
+```{r}
+write.csv(otus_BP,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/Network/otus_BP.csv")
+taxa_BP$sum = rowSums(otus_BP)
+write.csv(taxa_BP,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/Network/taxa_BP.csv")
+write.csv(meta_BP,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/Network/meta_BP.csv")
+```
+
+For abundance scaling: DG
+```{r}
+write.csv(otus_DG,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/Network/otus_DG.csv")
+taxa_DG$sum = rowSums(otus_DG)
+write.csv(taxa_DG,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/Network/taxa_DG.csv")
+write.csv(meta_DG,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/Network/meta_DG.csv")
+```
+
+
+
+

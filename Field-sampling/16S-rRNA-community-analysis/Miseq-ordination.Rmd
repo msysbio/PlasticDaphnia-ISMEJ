@@ -1,0 +1,979 @@
+---
+title: "Bacterioplankton vs microbiome plot for field's samples"
+output: html_notebook
+---
+```{r}
+library(vegan)
+library(phyloseq)
+library(reshape2)
+library(ggpubr)
+library(ggplot2)
+library(dplyr)
+```
+
+
+Import a rarefied phyloseq object
+
+```{r}
+ps_rarified = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Field/Miseq/output/new/new/ps_rarefied")
+ps_filtered <- prune_samples(sample_data(ps_rarified)$Category != "WWTP", ps_rarified) #remove samples from WWTP
+```
+
+The old metadata contains some ponds classified as "regular pond" and needs to be changed to Natural pond
+
+```{r}
+sam_data <- sample_data(ps_filtered)
+sam_data$Category[sam_data$Category == "Regular pond"] <- "Natural pond"
+sample_data(ps_filtered) <- sam_data
+```
+
+Bray-curtis distance on the whole dataset
+
+```{r}
+bray <- vegdist(data.frame(t(otu_table(ps_filtered))), method="bray") 
+```
+
+Unconstrained nMDS:
+
+```{r}
+nMDS <- metaMDS(bray,k=2,distance = 'bray') #high stress: 0.2090594
+```
+Unconstrained PCoA
+```{r}
+PCoA <- capscale(bray~1)
+```
+
+Just Plot:
+
+```{r}
+sample_data(ps_filtered)$Category[sample_data(ps_filtered)$Category == "Artifical pond"] <- "High MPs"
+sample_data(ps_filtered)$Category[sample_data(ps_filtered)$Category == "Natural pond"] <- "Low MPs"
+
+colors = c("Bacterioplankton" = "#b3669e", "Daphnia" = "#98984d")
+
+p = NULL
+Fig3A = plot_ordination(ps_filtered, PCoA, color = "Type") +
+  geom_point(aes(shape = Category), size = 7) +  # Increase point size here
+  scale_color_manual(values = colors) +  # Apply custom color scheme
+  scale_shape_manual(values = c(16,1,4)) +  # Custom shapes for each location
+  labs(title = "", 
+       x = paste0("PCoA1: ",round(PCoA$CA$eig[1]/sum(PCoA$CA$eig)*100), "%"),
+       y = paste0("PCoA2: ",round(PCoA$CA$eig[2]/sum(PCoA$CA$eig)*100), "%" ),
+       color = "Sample Type", 
+       shape = "Location") +  # Update labels
+  theme_pubr()+  # Minimal theme
+  theme(legend.text = element_text(size = 10),
+        legend.title = element_text(size = 8),
+        legend.key.size = unit(1, "cm"))
+Fig3A
+
+```
+
+
+Statistical analysis(PERMANOVAS):
+
+1. Is there a difference in a community between bacterioplankton and microbiome?
+
+```{r}
+#permanova: 
+permanova = adonis2(bray ~ data.frame(sample_data(ps_filtered))$Type)
+print(permanova)
+```
+```{r}
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_filtered))$Type,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category)
+```
+Conclusion: Bacterioplankton and microbiome communities are statistically different.
+
+"""
+BACTERIOPLANKTON
+"""
+1. Is there statistical difference between UP and NP in Bacterioplankton communities?
+
+```{r}
+#Load bacterioplantkon ps
+ps_rarified_bac = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Field/Miseq/output/new/new/bac_rarified")
+ps_filtered_bac <- prune_samples(sample_data(ps_rarified_bac)$Category != "WWTP", ps_rarified_bac) #remove WWTP
+bray <- vegdist(data.frame(otu_table(ps_filtered_bac)), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_filtered_bac))$Category)
+print(permanova)
+```
+```{r}
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_filtered_bac))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #0.07019 
+print(disp_category)
+```
+Conclusion:
+There is a significant difference between bacterioplankton communities in UP and NP.
+
+Richness and eveness between High MPs and Low MPs:
+```{r}
+tab <-microbiome::alpha(ps_filtered_bac, index = "all")
+meta <- data.frame(sample_data(ps_filtered_bac)) #Accessing my sample information from the ps object containing rarefied data
+meta$Category[meta$Category == "Artifical pond"] <- "Urban pond"
+sample_data(ps_filtered_bac) = meta
+tab$Category = meta$Category
+
+
+#Chao1
+print(t.test(chao1~Category, data=tab)) # p-value = 0.5491
+
+#Shannon
+print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.2106
+
+#Pielou
+print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.282
+
+
+###Chao1
+p.chao1 <- microbiome::boxplot_alpha(ps_filtered_bac, 
+                           index = "Chao1",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "blue", 
+                                           "Urban pond" = "red"))
+
+
+p.chao1 <- p.chao1 + theme_pubr() + 
+  labs(x="", y="Chao1") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+#####Shannon
+
+p.shannon <- microbiome::boxplot_alpha(ps_filtered_bac, 
+                           index = "diversity_shannon",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "blue", 
+                                           "Urban pond" = "red"))
+
+
+p.shannon <- p.shannon + theme_pubr() + 
+  labs(x="", y="Shannnon") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+#####Pielou
+
+p.Pielou <- microbiome::boxplot_alpha(ps_filtered_bac, 
+                           index = "evenness_pielou",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "blue", 
+                                           "Urban pond" = "red"))
+
+
+p.Pielou <- p.Pielou + theme_pubr() + 
+  labs(x="", y="Pielou") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+#####Combine in one plot
+p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined
+
+Sup_Fig3A=p_combined + 
+  plot_annotation(title = "Diversity Indices Comparison: Bacterioplankton") +
+  plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
+Sup_Fig3A
+
+```
+
+Conclusion:
+UP and NP communities are equally rich
+
+```{r}
+ps_filtered_bac.genus <- tax_glom(ps_filtered_bac, taxrank = "Genus")
+bp_NP <- subset_samples(ps_filtered_bac.genus, Category=="Natural pond")
+# Top N taxa
+N <- 10
+top <- names(sort(taxa_sums(bp_NP), decreasing = TRUE))[1:N]
+
+# Calculate relative abundance
+ps_filtered_bac.genus.prop <- transform_sample_counts(bp_NP, function(x) x / sum(x) )
+
+# Subset object to top N taxa
+ps_filtered_bac.genus.prop.top <- prune_taxa(top, ps_filtered_bac.genus.prop)
+
+ps_filtered_bac.genus.prop.top_df = psmelt(ps_filtered_bac.genus.prop.top) 
+
+ggplot(ps_filtered_bac.genus.prop.top_df, aes(x = Sample, y = Abundance, fill = Genus)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs(x = "Sample", y = "Relative Abundance", title = "Top 10 Taxa Relative Abundance for Natural pond in bacterioplankton") +
+  scale_fill_viridis_d(begin = 0.5, direction = -1) 
+
+```
+
+
+```{r}
+bp_AP <- subset_samples(ps_filtered_bac.genus, Category=="Artifical pond")
+# Top N taxa
+N <- 10
+top <- names(sort(taxa_sums(bp_AP), decreasing = TRUE))[1:N]
+
+# Calculate relative abundance
+ps_filtered_bac.genus.prop <- transform_sample_counts(bp_AP, function(x) x / sum(x) )
+
+# Subset object to top N taxa
+ps_filtered_bac.genus.prop.top <- prune_taxa(top, ps_filtered_bac.genus.prop)
+
+ps_filtered_bac.genus.prop.top_df= ps_filtered_bac.genus.prop.top %>% psmelt() 
+
+ggplot(ps_filtered_bac.genus.prop.top_df, aes(x = Sample, y = Abundance, fill = Genus)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs(x = "Sample", y = "Relative Abundance", title = "Top 10 Taxa Relative Abundance for City pond in bacterioplankton") +
+  scale_fill_viridis_d(begin = 0.5, direction = -1) 
+```
+Top bacteria differences between Natural and Artifical ponds:
+Aurantimicrobium and Azomonas.
+Conclusion: These bacteria are now known to be associated with MPs or human activity. Azomonas is an important nitrogen fixing bacteria.
+
+PCoAs for Bacterioplankton (PLAIN)
+
+```{r}
+#Load bacterioplantkon ps
+ps_rarified_bac = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Field/Miseq/output/new/new/bac_rarified")
+sample_data(ps_rarified_bac)$Category[sample_data(ps_rarified_bac)$Category == "Artifical pond"] <- "High MPs"
+sample_data(ps_rarified_bac)$Category[sample_data(ps_rarified_bac)$Category == "Natural pond"] <- "Low MPs"
+
+ps_filtered_bac <- prune_samples(sample_data(ps_rarified_bac)$Category != "WWTP", ps_rarified_bac)
+sample_data <- data.frame(sample_data(ps_filtered_bac))
+bray <- vegdist(data.frame(otu_table(ps_filtered_bac)), method="bray")
+
+#nMDS <- metaMDS(bray,k=2,distance = 'bray')
+PCoA <- capscale(bray~1) #un-constrained
+CCA <- capscale(bray~Category, data=sample_data) #constrained
+
+
+#GG-plot:Unconstrained
+colors <- c("Low MPs" = "#6885d0", "High MPs" = "#cb5658")
+p = NULL
+p = plot_ordination(ps_rarified_bac, PCoA, color = "Category") +
+    geom_point(aes(color = Category), size = 3) +  # Ensure points are colored by Category
+  scale_color_manual(values = colors) +  # Apply custom color scheme
+  scale_shape_manual(values = c(16,1)) +  # Custom shapes for each location
+  labs(title = "", 
+       x = paste0("PCoA1: ",round(PCoA$CA$eig[1]/sum(PCoA$CA$eig)*100),"%"),
+       y = paste0("PCoA2: ",round(PCoA$CA$eig[2]/sum(PCoA$CA$eig)*100),"%"),
+       color = "Sample Type", 
+       shape = "Location") +  # Updated labels with explained variance
+  theme_pubr() +  # Minimal theme
+  geom_point(size = 3) +  # Increase point size
+  theme(legend.text = element_text(size = 6),  # Smaller legend text
+        legend.title = element_text(size = 5),  # Smaller legend title
+        legend.key.size = unit(0.5, "cm"))  # Smaller legend keys
+
+p
+```
+Plain plot:Unconstrained
+
+```{r}
+# Assuming your PCoA object is stored in `PCoA`
+# Calculate explained variance for the axes
+x_var <- round(PCoA$CA$eig[1] / sum(PCoA$CA$eig) * 100, 1)
+y_var <- round(PCoA$CA$eig[2] / sum(PCoA$CA$eig) * 100, 1)
+
+# Create a basic scatter plot using base R plot
+colors <- c("Low MPs" = "#6885d0", "High MPs" = "#cb5658")
+
+# Extract coordinates for plotting
+PCoA_coords <- scores(PCoA)
+
+# Convert your data into a dataframe for ggplot compatibility
+data_for_plot <- data.frame(PCoA1 = PCoA_coords$sites[, 1],
+                            PCoA2 = PCoA_coords$sites[, 2],
+                            Category = as.factor(sample_data$Category))  # Ensure 'Category' is a factor
+
+# Create the ggplot
+Fig3C <- ggplot(data_for_plot, aes(x = PCoA1, y = PCoA2, color = Category)) +
+  geom_point(size = 5) +  # Size and shape for the points
+  scale_color_manual(values = colors) +  # Apply your custom color scheme
+  labs(title = "", 
+       x = paste0("PCoA1: ", x_var, "%"),
+       y = paste0("PCoA2: ", y_var, "%"),
+       color = "Bacterioplankton", 
+       shape = "Location") +  # Update labels
+  theme_pubr() +  # Minimal theme
+  theme(legend.text = element_text(size = 10),  # Adjust legend text size
+        legend.title = element_text(size = 12),  # Adjust legend title size
+        legend.key.size = unit(1, "cm"),  # Adjust legend key size
+        legend.position = c(0.05, 0.95),  # Move legend to top-left corner (relative coordinates)
+        legend.justification = c("left", "top"))  # Anchor the legend to the top-left corner
+
+# Print the plot
+print(Fig3C)
+
+```
+Plain plot:Constrained
+```{r}
+# Extract eigenvalues for constrained and unconstrained components
+constrained_variance <- CCA$CCA$eig  # Eigenvalue for CCA1 (constrained)
+unconstrained_variance <- CCA$CA$eig  # Eigenvalues for unconstrained axes (residuals)
+
+# Total variance (constrained + unconstrained)
+total_variance <- sum(constrained_variance) + sum(unconstrained_variance)
+
+# Percentage of variance explained by the constrained axis
+constrained_pct <- sum(constrained_variance) / total_variance * 100
+
+# Percentage of variance explained by the first unconstrained axis
+unconstrained_pct_1 <- unconstrained_variance[1] / total_variance * 100
+
+# Extract constrained axes scores from dbRDA
+CCA_coords <- scores(CCA, display = "sites")
+
+# Create a basic scatter plot using base R plot
+colors <- c("Low MPs" = "#6885d0", "High MPs" = "#cb5658")
+
+# Plot the points with the constrained axis on X (PCoA1) and unconstrained on Y (PCoA2)
+plot(CCA_coords[, 1], CCA_coords[, 2], 
+     col = colors[as.character(sample_data$Category)], 
+     pch = 16,  # Use solid circles
+     xlab = paste("Constrained PCoA1: ", round(constrained_pct), "%", sep = ""),
+     ylab = paste("Unconstrained PCoA2: ", round(unconstrained_pct_1), "%", sep = ""),
+     main = "")
+
+# Add a legend
+legend("topright", legend = names(colors), col = colors, pch = 16)
+```
+
+
+Load envirionmental information:
+
+```{r}
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+bac_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_filtered_bac))
+sam_data_bac = subset(sam_data,rownames(sam_data) %in% sample_names(ps_filtered_bac))
+```
+
+Running envfit:
+```{r}
+envfit_result <- envfit(nMDS, bac_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+```
+
+
+```{r}
+sam_data_bac$Category[sam_data_bac$Category == "Artifical pond"] <- "High MPs"
+sam_data_bac$Category[sam_data_bac$Category == "Natural pond"] <- "Low MPs"
+
+# Plot the NMDS ordination
+ordiplot(nMDS, display = "sites", type = "n")  #
+colors <- c("High MPs" = "red", "Low MPs" = "blue")
+# Add colored points based on 'Type'
+points(nMDS$points[,1], nMDS$points[,2], col = colors[sam_data_bac$Category], pch = 19)
+# Overlay the envfit vectors or factors onto the NMDS plot
+plot(envfit_result, p.max = 0.01, col = "red", add = TRUE)  # Adds envfit vectors
+
+# Add a legend to the plot
+legend("topright", legend = names(colors), fill = colors, title="Bacterioplankton")
+
+# Extracting vectors, R, and p-values
+vectors <- envfit_result$vectors$arrows
+r_values <- envfit_result$vectors$r
+p_values <- envfit_result$vectors$pvals
+
+# Creating a data frame with the results
+envfit_scores <- data.frame(
+  R = r_values,
+  PValue = p_values
+)
+
+envfit_scores
+```
+
+No significant envfit for bacterioplankton
+
+"""
+
+Stepwise db-RDA for Bacterioplankton:
+
+"""
+```{r}
+#Load a full metadata for bacteria:
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+bac_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_filtered_bac))
+scaled_bac_env_data <- as.data.frame(scale(bac_env_data)) #scale metavariables due to different scales
+
+sample_data(ps_filtered_bac) = scaled_bac_env_data
+bray = vegdist(data.frame(otu_table(ps_filtered_bac)), method="bray")
+
+dbrda = dbrda(bray ~ ., bac_env_data, dist="bray",na.action = na.exclude)
+plot(dbrda) 
+anova(dbrda, by="terms", permu=200)
+```
+No significant dbRDA
+
+"""
+DAPHNIA MICROBIOME
+"""
+
+3. Is there statistical difference between UP and NP in Microbiome communities?
+
+```{r}
+#Load microbiome ps
+ps_rarified_dap = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Field/Miseq/output/new/new/dap_rarified")
+bray <- vegdist(data.frame(otu_table(ps_rarified_dap)), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ Category, data=data.frame(sample_data(ps_rarified_dap)))
+print(permanova)
+```
+```{r}
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_rarified_dap))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category)
+```
+Conclusion:
+There is a significant difference between Microbiome communities in UP and NP.
+
+```{r}
+tab <-microbiome::alpha(ps_rarified_dap, index = "all")
+meta <- data.frame(sample_data(ps_rarified_dap)) #Accessing my sample information from the ps object containing rarefied data
+meta$Category[meta$Category == "Artifical pond"] <- "Urban pond"
+sample_data(ps_rarified_dap) = meta
+tab$Category = meta$Category
+
+
+#Chao1
+print(t.test(chao1~Category, data=tab)) # p-value = 0.4719
+
+#Shannon
+print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.5582
+
+#Pielou
+print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.3529
+
+
+###Chao1
+p.chao1 <- microbiome::boxplot_alpha(ps_rarified_dap, 
+                           index = "Chao1",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "blue", 
+                                           "Urban pond" = "red"))
+
+
+p.chao1 <- p.chao1 + theme_pubr() + 
+  labs(x="", y="Chao1") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+#####Shannon
+
+p.shannon <- microbiome::boxplot_alpha(ps_rarified_dap, 
+                           index = "diversity_shannon",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "blue", 
+                                           "Urban pond" = "red"))
+
+
+p.shannon <- p.shannon + theme_pubr() + 
+  labs(x="", y="Shannnon") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+#####Pielou
+
+p.Pielou <- microbiome::boxplot_alpha(ps_rarified_dap, 
+                           index = "evenness_pielou",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "blue", 
+                                           "Urban pond" = "red"))
+
+
+p.Pielou <- p.Pielou + theme_pubr() + 
+  labs(x="", y="Pielou") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+#####Combine in one plot
+p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined
+
+Sup_Fig3B=p_combined + 
+  plot_annotation(title = "Diversity Indices Comparison: Daphnia microbiome") +
+  plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
+Sup_Fig3B
+```
+
+Conclusion: No sinigifcant difference in richness between MPs exposed and non-exposed
+
+Combine plots (Bacterioplankton richness + Daphnia microbiome richness)
+
+```{r}
+figure <- ggarrange(Sup_Fig3A,Sup_Fig3B,
+                    labels = c("A", "B"),
+                    ncol = 2, nrow = 1)
+figure
+ggsave(filename='Figure3ABCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Figures',device='tiff')
+```
+
+
+```{r}
+ps_filtered_dap.genus <- tax_glom(ps_rarified_dap, taxrank = "Genus")
+ps_melt_dap= psmelt(ps_filtered_dap.genus)
+
+dp_NP <- subset_samples(ps_filtered_dap.genus, Category=="Natural pond")
+# Top N taxa
+N <- 10
+top <- names(sort(taxa_sums(dp_NP), decreasing = TRUE))[1:N]
+
+# Calculate relative abundance
+ps_filtered_dap.genus.prop <- transform_sample_counts(dp_NP, function(x) x / sum(x) )
+
+# Subset object to top N taxa
+ps_filtered_dap.genus.prop.top <- prune_taxa(top, ps_filtered_dap.genus.prop)
+
+ps_filtered_dap.genus.prop.top_df = psmelt(ps_filtered_dap.genus.prop.top) 
+
+ggplot(ps_filtered_dap.genus.prop.top_df, aes(x = Sample, y = Abundance, fill = Genus)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs(x = "Sample", y = "Relative Abundance", title = "Top 10 Taxa Relative Abundance for Natural pond in Daphnia microbiome") +
+  scale_fill_viridis_d(begin = 0.5, direction = -1) 
+```
+
+
+```{r}
+dp_AP <- subset_samples(ps_filtered_dap.genus, Category=="Artifical pond")
+# Top N taxa
+N <- 10
+top <- names(sort(taxa_sums(dp_AP), decreasing = TRUE))[1:N]
+
+# Calculate relative abundance
+ps_filtered_dap.genus.prop <- transform_sample_counts(dp_AP, function(x) x / sum(x) )
+
+# Subset object to top N taxa
+ps_filtered_dap.genus.prop.top <- prune_taxa(top, ps_filtered_dap.genus.prop)
+
+ps_filtered_dap.genus.prop.top_df = psmelt(ps_filtered_dap.genus.prop.top) 
+
+ggplot(ps_filtered_dap.genus.prop.top_df, aes(x = Sample, y = Abundance, fill = Genus)) +
+  geom_bar(stat = "identity") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5)) +
+  labs(x = "Sample", y = "Relative Abundance", title = "Top 10 Taxa Relative Abundance for Artifical pond in Daphnia microbiome") +
+  scale_fill_viridis_d(begin = 0.5, direction = -1) 
+```
+These are the most abundant bacteria in AP that are not in NP:
+Corynebacterium
+GKS98 freshwater group (Burkholderiales Alcaligenaceae)
+Hydrogenophaga
+Pirellula
+Silvanigrella
+
+PCoAs for Microbiome:
+
+```{r}
+ps_rarified_dap = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Field/Miseq/output/new/new/dap_rarified")
+bray <- vegdist(data.frame(otu_table(ps_rarified_dap)), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray') #0.1776099
+colors <- c("Natural pond" = "#6885d0", "Artifical pond" = "#cb5658")
+
+# Update your plot code
+p <- plot_ordination(ps_rarified_dap, nMDS, color = "Category") +
+  geom_point(aes(color = Category), size = 3) +  # Ensure points are colored by Category
+  scale_color_manual(values = colors) +  # Apply custom color scheme
+  labs(title = "", 
+       x = "NMDS1", 
+       y = "NMDS2",
+       color = "Sample Type", 
+       shape = "Location") +  # Updated labels with explained variance
+  theme_pubr() +  # Minimal theme
+  geom_point(size = 3) +  # Increase point size
+  theme(legend.text = element_text(size = 6),  # Smaller legend text
+        legend.title = element_text(size = 5),  # Smaller legend title
+        legend.key.size = unit(0.5, "cm"))  # Smaller legend keys
+
+p
+```
+
+
+```{r}
+PCoA <- capscale(bray~1)
+sample_data <- data.frame(sample_data(ps_rarified_dap))
+sample_data$Category[sample_data$Category == "Artifical pond"] <- "High MPs"
+sample_data$Category[sample_data$Category == "Natural pond"] <- "Low MPs"
+x_var <- round(PCoA$CA$eig[1] / sum(PCoA$CA$eig) * 100, 1)
+y_var <- round(PCoA$CA$eig[2] / sum(PCoA$CA$eig) * 100, 1)
+
+# Create a basic scatter plot using base R plot
+colors <- c("Low MPs" = "#6885d0", "High MPs" = "#cb5658")
+
+# Extract coordinates for plotting
+PCoA_coords <- scores(PCoA)
+
+# Convert your data into a dataframe for ggplot compatibility
+data_for_plot <- data.frame(PCoA1 = PCoA_coords$sites[, 1],
+                            PCoA2 = PCoA_coords$sites[, 2],
+                            Category = as.factor(sample_data$Category))  # Ensure 'Category' is a factor
+ 
+Fig3D <- ggplot(data_for_plot, aes(x = PCoA1, y = PCoA2, color = Category)) +
+  geom_point(size = 5) +  # Size and shape for the points
+  scale_color_manual(values = colors) +  # Apply your custom color scheme
+  labs(title = "", 
+       x = paste0("PCoA1: ", x_var, "%"),
+       y = paste0("PCoA2: ", y_var, "%"),
+       color = "Daphnia microbiome", 
+       shape = "Location") +  # Update labels
+  theme_pubr() +  # Minimal theme
+  theme(legend.text = element_text(size = 10),  # Adjust legend text size
+        legend.title = element_text(size = 12),  # Adjust legend title size
+        legend.key.size = unit(1, "cm"),  # Adjust legend key size
+        legend.position = c(0.05, 1.1),  # Move legend closer to the top (y = 1)
+        legend.justification = c("left", "top"))  # Anchor the legend to the top-left corner
+Fig3D
+```
+
+Load envirionmental information:
+
+```{r}
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+dap_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_rarified_dap))
+sam_data_dap = subset(sam_data,rownames(sam_data) %in% sample_names(ps_rarified_dap))
+```
+
+Running envfit:
+```{r}
+envfit_result <- envfit(nMDS, dap_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+p = p.adjust.envfit(envfit_result)
+p
+```
+
+Plot the NMDS ordination
+```{r}
+sam_data_dap$Category[sam_data_dap$Category == "Natural pond"] <- "Low MPs"
+sam_data_dap$Category[sam_data_dap$Category == "Artifical pond"] <- "High MPs"
+ordiplot(nMDS, display = "sites", type = "n")  #
+colors <- c("High MPs" = "red", "Low MPs" = "blue")
+# Add colored points based on 'Type'
+points(nMDS$points[,1], nMDS$points[,2], col = colors[sam_data_dap$Category], pch = 19)
+# Overlay the envfit vectors or factors onto the NMDS plot
+plot(envfit_result, p.max = 0.05, col = "red", add = TRUE)  # Adds envfit vectors
+
+# Add a legend to the plot
+legend("topright", legend = names(colors), fill = colors, title="Host microbiome")
+
+# Extracting vectors, R, and p-values
+vectors <- envfit_result$vectors$arrows
+r_values <- envfit_result$vectors$r
+p_values <- envfit_result$vectors$pvals
+
+# Creating a data frame with the results
+envfit_scores <- data.frame(
+  R = r_values,
+  PValue = p_values
+)
+
+envfit_scores
+```
+
+```{r}
+#Load a full metadata for microbiome:
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+dap_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_rarified_dap))
+scaled_dap_env_data <- as.data.frame(scale(dap_env_data)) #scale metavariables due to different scales
+# Calculate correlation matrix
+cor_matrix <- cor(scaled_dap_env_data, use = "pairwise.complete.obs")
+library(caret)
+# Identify highly correlated pairs (absolute correlation > 0.7)
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.7, verbose = TRUE)
+reduced_data <- scaled_dap_env_data[,-highly_correlated]
+
+sample_data(ps_rarified_dap) = reduced_data
+bray = vegdist(data.frame(otu_table(ps_rarified_dap)), method="bray")
+dbrda = dbrda(bray ~ ., reduced_data, dist="bray", na.action = na.exclude)
+summary(dbrda)
+anova(dbrda)
+anova(dbrda, by="terms", permu=999) #Load a full metadata for bacteria:
+
+"
+             Df SumOfSqs      F Pr(>F)    
+Temperature   1   0.9463 3.3382  0.001 ***
+pH            1   0.3729 1.3155  0.210    
+Conductivity  1   0.3744 1.3207  0.193    
+Redox         1   0.8749 3.0861  0.003 ** 
+Chlorophyl    1   0.7474 2.6364  0.009 ** 
+PE.PP         1   0.2304 0.8127  0.576    
+Residual     45  12.7567                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"
+reduced_data$Category=sample_data$Category
+colors <- c("Low MPs" = "#6885d0", "High MPs" = "#cb5658")
+plot(dbrda, 
+     pch = 16,  # Use solid circles
+     main = "")
+
+# Then overlay the points colored by Category
+points(scores(dbrda, display = "sites")[, 1], 
+       scores(dbrda, display = "sites")[, 2], 
+       col = colors[as.character(reduced_data$Category)], 
+       pch = 10,
+       cex = 1.5)
+
+# Add a legend with a title
+legend("topright", 
+       legend = names(colors), 
+       col = colors, 
+       pch = 16, 
+       title = "Category")
+
+```
+
+BACTERIOPLANKTON vs MICROBIOME:
+
+```{r}
+library(BiocManager)
+library(microbiome)
+library(knitr)
+library(ggpubr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_filtered, index = "all")
+meta <- data.frame(sample_data(ps_filtered)) #Accessing my sample information from the ps object containing rarefied data
+tab$Type = meta$Type
+
+###Chao1
+p.chao1 <- microbiome::boxplot_alpha(ps_filtered, 
+                           index = "Chao1",
+                           x_var = "Type",
+                           fill.colors = c("Bacterioplankton" = "#b3669e", 
+                                           "Daphnia" = "#98984d"))
+
+
+p.chao1 <- p.chao1 + theme_pubr() + 
+  labs(x="", y="Chao1") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.chao1
+print(wilcox.test(chao1~Type, data=tab)) # p-value = 3.448e-12
+#####Shannon
+
+p.shannon <- microbiome::boxplot_alpha(ps_filtered, 
+                           index = "diversity_shannon",
+                           x_var = "Type",
+                           fill.colors = c("Bacterioplankton" = "#b3669e", 
+                                           "Daphnia" = "#98984d"))
+
+
+p.shannon <- p.shannon + theme_pubr() + 
+  labs(x="", y="Shannnon") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.shannon
+print(wilcox.test(diversity_shannon~Type, data=tab)) # p-value =  1.235e-11
+
+
+#####Pielou
+
+p.Pielou <- microbiome::boxplot_alpha(ps_filtered, 
+                           index = "evenness_pielou",
+                           x_var = "Type",
+                           fill.colors = c("Bacterioplankton" = "#b3669e", 
+                                           "Daphnia" = "#98984d"))
+
+
+p.Pielou <- p.Pielou + theme_pubr() + 
+  labs(x="", y="Pielou") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.Pielou
+print(wilcox.test(evenness_pielou~Type, data=tab)) # p-value = 3.527e-08
+
+#####Combine in one plot
+p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined
+Fig3B=p_combined + 
+  plot_annotation(title = "") +
+  plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
+Fig3B
+```
+Combine plots together:
+
+```{r}
+figure <- ggarrange(Fig3A,Fig3B,Fig3C,Fig3D,
+                    labels = c("A", "B","C","D"),
+                    ncol = 2, nrow = 2)
+figure
+ggsave(filename='Figure3ABCDCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/Figures',device='tiff',width=15, height = 10)
+```
+
+BACTERIOPLANKTON:
+
+```{r}
+library(BiocManager)
+library(microbiome)
+library(knitr)
+library(ggpubr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_filtered_bac, index = "all")
+meta <- data.frame(sample_data(ps_filtered_bac)) #Accessing my sample information from the ps object containing rarefied data
+tab$Category = meta$Category
+
+
+###Chao1
+p.chao1 <- boxplot_alpha(ps_filtered_bac, 
+                           index = "Chao1",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "#6885d0", 
+                                           "Artifical pond" = "#cb5658"))
+
+
+p.chao1 <- p.chao1 + theme_pubr() + 
+  labs(x="", y="Chao1") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.chao1
+print(t.test(chao1~Category, data=tab)) # p-value = 0.5491
+
+
+#####Shannon
+
+p.shannon <- boxplot_alpha(ps_filtered_bac, 
+                           index = "diversity_shannon",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "#6885d0", 
+                                           "Artifical pond" = "#cb5658"))
+
+
+p.shannon <- p.shannon + theme_pubr() + 
+  labs(x="", y="Shannnon") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.shannon
+print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.2106
+
+
+#####Pielou
+
+p.Pielou <- boxplot_alpha(ps_filtered_bac, 
+                           index = "evenness_pielou",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "#6885d0", 
+                                           "Artifical pond" = "#cb5658"))
+
+
+p.Pielou <- p.Pielou + theme_pubr() + 
+  labs(x="", y="Pielou") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.Pielou
+print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.282
+
+#####Combine in one plot
+p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined
+# Optionally, if you want to add a common title or adjust spacing, you can do:
+p_combined + 
+  plot_annotation(title = "Diversity Indices Comparison for Bacterioplantkon samples") +
+  plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
+```
+
+MICROBIOME:
+
+```{r}
+library(BiocManager)
+library(microbiome)
+library(knitr)
+library(ggpubr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_rarified_dap, index = "all")
+meta <- data.frame(sample_data(ps_rarified_dap)) #Accessing my sample information from the ps object containing rarefied data
+tab$Category = meta$Category
+
+
+###Chao1
+p.chao1 <- boxplot_alpha(ps_rarified_dap, 
+                           index = "Chao1",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "#6885d0", 
+                                           "Artifical pond" = "#cb5658"))
+
+
+p.chao1 <- p.chao1 + theme_pubr() + 
+  labs(x="", y="Chao1") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.chao1
+print(t.test(chao1~Category, data=tab)) # p-value = 0.4719
+
+
+#####Shannon
+
+p.shannon <- boxplot_alpha(ps_rarified_dap, 
+                           index = "diversity_shannon",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "#6885d0", 
+                                           "Artifical pond" = "#cb5658"))
+
+
+p.shannon <- p.shannon + theme_pubr() + 
+  labs(x="", y="Shannnon") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.shannon
+print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.5582
+
+
+#####Pielou
+
+p.Pielou <- boxplot_alpha(ps_rarified_dap, 
+                           index = "evenness_pielou",
+                           x_var = "Category",
+                           fill.colors = c("Natural pond" = "#6885d0", 
+                                           "Artifical pond" = "#cb5658"))
+
+
+p.Pielou <- p.Pielou + theme_pubr() + 
+  labs(x="", y="Pielou") +
+  theme(axis.text = element_text(size=12),
+        axis.title = element_text(size=16),
+        legend.position = "none") # This line removes the legend
+
+p.Pielou
+print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.3529
+
+#####Combine in one plot
+p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined
+# Optionally, if you want to add a common title or adjust spacing, you can do:
+p_combined + 
+  plot_annotation(title = "Diversity Indices Comparison for Microbiome samples") +
+  plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
+```
+

@@ -1,0 +1,184 @@
+---
+title: "Plastics concetrations: Analysis-water"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(tidyr)
+library(reshape2)
+```
+
+Water: Artifical vs Nature pond
+```{r}
+plas <- read.csv("//Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Field/Plastic_concentrations/Water.csv")
+```
+
+```{r}
+plas_filtered <- plas %>%
+  filter(Pond.Category != "WWTP" & Location != "Sint-Donatus Park")
+```
+
+Provide per Liter measurment (divide the abundances by 150)
+
+```{r}
+plas_filtered$plas_per_milliliter = plas_filtered$plastics / 150000
+```
+
+
+```{r}
+plas_filtered_averaged <- plas_filtered %>%
+  group_by(Pond.Category) %>%
+  summarise(
+    mean = mean(plas_per_milliliter, na.rm = TRUE),
+    sd = sd(plas_per_milliliter, na.rm = TRUE),
+    count = n(),
+    se = sd / sqrt(count) # Standard Error
+  )
+```
+
+Plotting the bar chart with error bars
+
+```{r}
+plas_filtered_averaged$Pond.Category[plas_filtered_averaged$Pond.Category == "Artificial pond"] <- "City pond"
+ggplot(plas_filtered_averaged, aes(x = Pond.Category, y = mean, fill=Pond.Category)) +
+  scale_fill_manual(values = c("City pond" = "#cb5658", "Natural pond" = "#6885d0")) +
+  geom_bar(stat = "identity", position = position_dodge()) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2, position = position_dodge(0.9)) +
+  labs(x = "", y = "Mean MPs number in a gram (MPs/mL) of Water", title = "Pond water samples") +
+  theme_pubr() +
+  theme(legend.position = "none")
+```
+Plot a boxplot with dot overlay
+```{r}
+plas_filtered$Pond.Category[plas_filtered$Pond.Category == "Artificial pond"] <- "City pond"
+Fig2C=ggplot(plas_filtered, aes(x = Pond.Category, y = plas_per_milliliter, fill = Pond.Category)) +
+  geom_boxplot(outlier.shape = NA) + # Boxplot without outliers (dots will represent individual points)
+  geom_jitter(color = "black", width = 0.2, size = 1.5, alpha = 0.6) + # Dot overlay (jitter)
+  scale_fill_manual(values = c("City pond" = "#cb5658", "Natural pond" = "#6885d0")) +
+  labs(x = "", y = "MPs per mL of pond water", title = "Pond water samples") +
+  theme_pubr() + # Use a minimal theme
+  theme(legend.position = "none") # Remove the legend
+Fig2C
+```
+
+
+Check normality for each group
+```{r}
+plas_filtered$Pond.Category[plas_filtered$Pond.Category == "Artificial pond"] <- "City pond"
+
+shapiro.test(na.omit(plas_filtered$plas_per_milliliter[plas_filtered$Pond.Category == "City pond"])) #p-value = 0.03538
+shapiro.test(na.omit(plas_filtered$plas_per_milliliter[plas_filtered$Pond.Category == "Natural pond"])) #p-value = 1.35e-05
+```
+Log transform the data
+
+```{r}
+plas_filtered$plastics_log <- log(plas_filtered$plas_per_milliliter + 1)
+```
+
+Check normality for each group (logged)
+```{r}
+shapiro.test(na.omit(plas_filtered$plastics_log[plas_filtered$Pond.Category == "City pond"])) #p-value = 0.2245
+shapiro.test(na.omit(plas_filtered$plastics_log[plas_filtered$Pond.Category == "Natural pond"])) #p-value = 0.001313
+```
+```{r}
+wilcox.test(plas_per_milliliter~Pond.Category,data=plas_filtered) #0.002406
+
+"
+Wilcoxon rank sum test with continuity correction
+
+data:  plas_per_milliliter by Pond.Category
+W = 146.5, p-value = 0.002406
+alternative hypothesis: true location shift is not equal to 0
+
+"
+```
+Per pond analysis
+
+```{r}
+plas_filtered_averaged <- plas_filtered %>%
+  group_by(Location) %>%
+  summarise(
+    mean = mean(plas_per_liter, na.rm = TRUE),
+    sd = sd(plas_per_liter, na.rm = TRUE),
+    count = n(),
+    se = sd / sqrt(count) # Standard Error
+  )
+
+print(plas_filtered_averaged)
+```
+
+
+```{r}
+plas_filtered_averaged$Category=c("Artificial pond","Artificial pond","Natural pond","Natural pond","Natural pond","Natural pond","Artificial pond","Natural pond","Natural pond","Natural pond","Natural pond")
+
+ggplot(plas_filtered_averaged, aes(x = Location, y = mean, fill = Category)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("Artificial pond" = "#cb5658", "Natural pond" = "#6885d0")) +
+  labs(x = "Pond", y = "Mean MPs number in a Liter of pond water (MPs/L)", title = "") +
+  theme_pubr() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  coord_flip()+
+  theme(legend.position = "none")# Swap the axes to make bars lay horizontally
+```
+MICROPLASTICS COMPOSITIONS-WATER
+```{r}
+plas <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/0_REBBUTAL/10_Scripts/files/tables/MPs_measurment-Water.csv")
+plas_norm= plas %>%
+  dplyr::select(PE_PP,PS,PET_polyester) %>%
+  mutate(./150) %>% #Change to MPs per LITER
+  melt()
+
+plas_norm$Category = plas$Pond.Category
+
+plas_norm <- plas_norm %>%
+  mutate(variable = dplyr::recode(variable, 
+                           "PE_PP" = "PE/PP",
+                           "PET_polyester" = "PET/Polyester",
+                           "PS" = "PS"))
+
+
+ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  scale_fill_manual(values = c("Artificial pond" = "#cb5658", "Natural pond" = "#6885d0")) +
+  labs(x = "Polymer type", y = "Mean MPs number in a Liter of water", title = "") +
+  theme_pubr() +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust=1),
+        legend.position = "none") # This removes the legend completely
+```
+
+
+```{r}
+# Create the box plot without dot overlay
+Fig2D=ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
+  geom_boxplot(outlier.shape = NA) +  # Box plot without outliers
+  scale_y_log10() +  # Logarithmic y-axis to handle skewed data
+  scale_fill_manual(values = c("Artificial pond" = "#cb5658", "Natural pond" = "#6885d0")) +  # Custom colors for categories
+  labs(x = "Polymer type", y = "Log10 MPs number per mL of pond water", title = "") +
+  theme_pubr() +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust=1),
+        legend.position = "none")  # Removes the legend
+Fig2D
+
+# Create the box plot with dot overlay
+ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
+  geom_boxplot(outlier.shape = NA) +  # Box plot without outliers
+  geom_jitter(color = "black", width = 0.2, size = 1.5, alpha = 0.6) + # Dot overlay (jitter)
+  scale_y_log10() +  # Logarithmic y-axis to handle skewed data
+  scale_fill_manual(values = c("Artificial pond" = "#cb5658", "Natural pond" = "#6885d0")) +  # Custom colors for categories
+  labs(x = "Polymer type", y = "Log10 MPs number per gram of sediment", title = "") +
+  theme_pubr() +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust=1),
+        legend.position = "none")  # Removes the legend
+```
+Combine plots into one:
+```{r}
+figure <- ggarrange(Fig2C,Fig2D,
+                    labels = c("C", "D"),
+                    ncol = 2, nrow = 1)
+figure
+ggsave(filename='Figure2CDCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Figures',device='tiff')
+```
+

@@ -1,0 +1,89 @@
+﻿Location,Type,Sample ID,FINAL mg C/L,Dissolved oxygen (DO),Temperature (°C),Luminescent dissolved oxygen (LDO),pH,Conductivity,Redox,Chlorophyll
+Kluizen,Urban,Kluizen Top 1,28.097655,144.5,18.4,13.61,7.81,744,200.3,3.753
+Kluizen,Urban,Kluizen Top 2,66.82693714,143.2,17.8,13.59,7.82,749,200.9,3.321
+Kluizen,Urban,Kluizen Top 3,59.747655,145,17.9,13.79,7.83,749,201.2,4.102
+Kluizen,Urban,Kluizen Mid 1,21.62693714,141.3,17.6,13.57,7.83,740,200.7,4.102
+Kluizen,Urban,Kuizen Mid 2,105.6,139.7,17.7,13.36,7.84,741,200.8,4.102
+Kluizen,Urban,Kluizen Mid 3,30.287655,137.5,17.5,13.2,7.84,742,201.6,4.102
+Kluizen,Urban,Kluizen Bot 1,35.50693714,139.9,17.4,13.45,7.85,742,203.2,4.102
+Kluizen,Urban,Kluizen Bot 2,64.86693714,141.3,17.4,13.67,7.85,742,203.2,4.102
+Kluizen,Urban,Kluizen Bot 3,44.14693714,144.8,17.4,13.97,7.85,742,203.2,4.102
+De Gavers,Natural,De Gavers Top1,41.927655,161.7,22.1,14.22,7.79,,189.8,3.752
+De Gavers,Natural,De Gavers Top 2,11.007655,156.5,21.7,13.88,7.8,,194.3,3.474
+De Gavers,Natural,De Gavers Top 3,13.53693714,149.9,21.8,13.27,7.8,,197.4,4.243
+De Gavers,Natural,De Gavers Mid 1,24.417655,162,21.8,14.32,7.8,,191.7,4.243
+De Gavers,Natural,De Gavers Mid 2,95.49693714,156.8,21.7,13.89,7.8,,194.9,4.243
+De Gavers,Natural,De Gavers Mid 3,18.227655,147.2,21.7,13.04,7.8,,198.3,4.243
+Evangelie Boom ,Natural,Evangelie Top 1,15.52693714,106,22.4,8.1,7.83,293,137.9,4.813
+Evangelie Boom ,Natural,Evangelie Top 2,19.83693714,97,21.4,8.66,7.83,293,137.9,4.829
+Evangelie Boom ,Natural,Evangelie Top 3,27.67693714,97.9,21.3,8.77,7.83,293,137.9,4.938
+Evangelie Boom ,Natural,Evangelie Mid 1,15.46693714,100.6,20.6,9.13,7.83,293,137.5,4.938
+Evangelie Boom ,Natural,Evangelie Mid 2,83.55693714,95.1,20.5,8.6,7.83,293,137.5,4.938
+Evangelie Boom ,Natural,Evangelie Mid 3,18.51693714,90.8,20.4,8.31,7.83,293,137.5,4.938
+Evangelie Boom ,Natural,Evangelie Bot 1,15.21693714,85.3,20.4,7.88,7.83,293,134,4.938
+Evangelie Boom ,Natural,Evangelie Bot 2,21.49693714,85.3,20.4,7.88,7.83,293,134,4.938
+Evangelie Boom ,Natural,Eveangelie Bot 3,14.90693714,85.3,20.4,7.88,7.83,293,134,4.938
+Reserve next to Kulak,Natural,Kulak Top 1,13.14693714,115.8,27.8,9.19,7.84,397,110.2,14.97
+Reserve next to Kulak,Natural,Kulak Top 2,12.83693714,113.8,27.2,9.09,7.84,397,104.5,12.88
+Reserve next to Kulak,Natural,Kulak Top 3,12.91693714,119.4,27.7,9.45,7.84,397,105.4,13.5
+Reserve next to Kulak,Natural,Kulak Bot 1,13.49693714,84.6,25.6,7.04,7.84,397,105.4,13.5
+Reserve next to Kulak,Natural,Kulak Bot 2,13.48693714,82.1,25.5,6.88,7.84,397,105.4,13.5
+Reserve next to Kulak,Natural,Kulak Bot 3,35.057655,84.5,25.6,7.03,7.84,397,105.4,13.5
+MVR,Natural,MVR Top 1,11.697655,136.1,26,11.03,7.86,131.6,185.3,3.418
+MVR,Natural,MVR Top 2,31.237655,136.5,25.8,11.09,7.86,131.6,185.3,2.475
+MVR,Natural,MVR Top 3,31.747655,136,25.8,11.04,7.86,131.6,185.3,2.272
+MVR,Natural,MVR Mid 1,24.957655,137.7,25.6,11.35,7.86,131.6,184.8,2.272
+MVR,Natural,MVR Mid 2,14.267655,139.4,25.6,11.41,7.86,131.6,184.8,2.272
+MVR,Natural,MVR Mid 3,9.986937143,140.4,25.7,11.45,7.86,131.6,184.8,2.272
+MVR,Natural,MVR Bot 1,44.97693714,140.4,25.7,11.45,7.86,131.6,184.8,2.272
+MVR,Natural,MVR Bot 2,11.42693714,140.4,25.7,11.45,7.86,131.6,184.8,2.272
+MVR,Natural,MVR Bot 3,6.613937143,140.4,25.7,11.45,7.86,131.6,184.8,2.272
+Meer van Rotselaar,Natural,Rotselaar Top 1,16.81693714,144.7,26.9,11.59,7.85,144,188.7,2.478
+Meer van Rotselaar,Natural,Rotselaar Top 2,43.40693714,143,26.7,11.44,7.85,144,188.7,1.916
+Meer van Rotselaar,Natural,Rotselaar Top 3,33.63693714,144.9,26.5,11.64,7.85,144,188.7,1.752
+Meer van Rotselaar,Natural,Rotselaar Mid 1,38.86693714,148.3,26,12.02,7.85,144,188.7,1.752
+Meer van Rotselaar,Natural,Rotselaar Mid 2,21.97693714,147.8,25.8,12,7.85,144,188.7,1.752
+Meer van Rotselaar,Natural,Rotselaar Mid 3,65.41693714,145.6,26.1,11.77,7.85,144,188.7,1.752
+Meer van Rotselaar,Natural,Rotselaar Bot 1,47.66693714,145.6,26.1,11.77,7.85,144,188.7,1.752
+Meer van Rotselaar,Natural,Rotselaar Bot 2,28.777655,145.6,26.1,11.77,7.85,144,188.7,1.752
+Meer van Rotselaar,Natural,Rotselaar Bot 3,15.22693714,145.6,26.1,11.77,7.85,144,188.7,1.752
+Blauwwe Poort,Urban,Blauwwe P Top 1,0.5494,8.6,17.1,0.84,7.88,247,22.3,30.48
+Blauwwe Poort,Urban,Blauwwe P Top 2,2.534,8.2,17.1,0.8,7.88,247,22.3,21.15
+Blauwwe Poort,Urban,Blauwwe P Top 3,0.783,6.6,17,0.65,7.88,247,22.3,18.73
+Blauwwe Poort,Urban,Blauwwe P Bot 1,0.4722,4.2,16.7,0.42,7.88,247,22.3,18.73
+Blauwwe Poort,Urban,Blauwwe P Bot 2,6.864,5.6,16.8,0.55,7.88,247,22.3,18.73
+Blauwwe Poort,Urban,Blauwwe P Bot 3,0.4848,2,16.7,0.39,7.88,247,22.3,18.73
+Citadell Park,Urban,Citadell Top 1,19.81443333,96.2,19.5,8.88,7.83,253,175.6,4.236
+Citadell Park,Urban,Citadell Top 2,9.3494,96,19.3,8.9,7.83,253,175.6,4.7
+Citadell Park,Urban,Citadell Top 3,5.6924,95.8,19.2,8.9,7.83,253,175.6,4.304
+Citadell Park,Urban,Citadell Mid 1,5.8964,96.1,19,8.97,7.83,253,176.5,4.304
+Citadell Park,Urban,Citadell Mid 2,6.1364,94.6,18.9,8.83,7.83,253,179.4,4.304
+Citadell Park,Urban,Citadell Mid 3,16.6674,96.2,19,8.97,7.83,253,175.4,4.304
+De Bourgoyen,Natural,Bourgoyen Top 1,134.0644333,147.8,21.6,13.12,7.68,323,186.2,18.92
+De Bourgoyen,Natural,Bourgoyen Top 2,25.76443333,153.7,21.6,13.63,7.68,323,186.7,21.02
+De Bourgoyen,Natural,Bourgoyen Top 3,44.77443333,152.3,21.4,13.56,7.68,323,185.9,20.66
+De Bourgoyen,Natural,Bourgoyen Mid 1,24.26443333,104.3,19.9,9.56,7.68,323,188.4,20.66
+De Bourgoyen,Natural,Bourgoyen Mid 2,29.55443333,87.2,19.5,8.08,7.68,323,188.3,20.66
+De Bourgoyen,Natural,Bourgoyen Bot 1,109.1644333,83.2,19.4,8.16,7.68,323,188.7,20.66
+De Bourgoyen,Natural,Bourgoyen Bot 2,105.8644333,83.2,19.4,8.16,7.68,323,188.7,20.66
+Donk-Oudenaarde,Natural,Donk Top 1,77.30443333,150.5,21.3,13.22,7.93,328,158.3,9.547
+Donk-Oudenaarde,Natural,Donk Top 2,77.39443333,148.5,21.2,13.07,7.93,328,158.4,9.598
+Donk-Oudenaarde,Natural,Donk Top 3,64.88443333,153,21.3,13.44,7.93,328,157.7,10.55
+Donk-Oudenaarde,Natural,Donk Mid 1,53.00443333,150.5,21.2,13.25,7.93,328,153.1,10.55
+Donk-Oudenaarde,Natural,Donk Mid 2,101.3644333,151.3,21.3,13.28,7.93,328,149.5,10.55
+Donk-Oudenaarde,Natural,Donk Mid 3,46.0374,151.1,21.2,13.27,7.93,328,150.2,10.55
+St. Donatus P. ,Urban,St. Donatus Park Top 1,91.18443333,115.2,21.6,10.1,6.53,609,164.4,
+St. Donatus P. ,Urban,St. Donatus Park Top 2,86.59443333,114.5,21.3,10.1,6.52,612,165.7,
+St. Donatus P. ,Urban,St. Donatus Park Top 3,42.12443333,117.6,21.3,10.36,6.53,619,167,
+St. Donatus P. ,Urban,St. Donatus Park Mid 1,19.0674,108.7,21,9.63,6.53,620,163.4,
+St. Donatus P. ,Urban,St. Donatus Park Mid 2,89.90443333,110.3,21,9.77,6.53,620,163.1,
+St. Donatus P. ,Urban,St. Donatus Park Mid 3,44.75443333,109.8,21.1,9.72,6.53,623,161.8,
+LRV,Natural,LRV,,10.7,17.8,,7.74,467,168.8,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.74,468,164.4,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.75,445,166.8,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.75,445,166.8,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.76,445,166.8,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.76,445,166.8,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.76,445,166.8,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.76,445,166.8,5.3
+LRV,Natural,LRV,,10.7,17.8,,7.76,445,166.8,5.3

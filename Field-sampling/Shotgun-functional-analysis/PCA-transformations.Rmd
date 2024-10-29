@@ -1,0 +1,105 @@
+---
+title: "FUNCTIONAL ENRICHMENT: Comparisons of different trasnformations for PCA"
+output: html_notebook
+---
+
+Import packages
+```{r}
+library(dplyr)
+library(tidyr)
+library(DESeq2)
+library(ggplot2)
+library(reshape2)
+library(vegan)
+library(phyloseq)
+```
+
+
+Import dataset
+```{r}
+counts = read.csv('/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Field/Shotgun/14_All_together_datasets/COGs/COGs_all_samples_raw_counts.tsv',row.names = 1,sep="\t")
+meta = read.csv('/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Field/Shotgun/metadata.csv',row.names = 1, header=TRUE)
+#colnames(meta)[2] = "condition"
+meta <- meta[colnames(counts),]
+```
+
+1. PCA on proportions with "0s" (empty genes) removed
+
+```{r}
+total_counts <- colSums(counts)
+counts_tidy_proportion <- counts %>% #remove empty COGs
+  dplyr::filter(rowSums(.) > 0) %>% #proportion
+  sweep(2,total_counts, `/`)
+
+melted_counts <- melt(counts_tidy_proportion)
+ggplot(melted_counts, aes(value)) +
+  geom_histogram(bins = 30, fill = "blue", alpha = 0.7) +
+  labs(title = "Distribution of Counts Data (proportions)", x = "Counts", y = "Frequency") +
+  theme_minimal()
+```
+
+PCA-proportions:
+```{r}
+pca = prcomp(t(counts_tidy_proportion),scale. = TRUE)
+autoplot(pca)
+```
+
+2. PCA on arc-sine squareroot
+
+```{r}
+arcsine_sqrt_transformed <- sqrt(counts_tidy_proportion)
+arcsine_sqrt_transformed <- asin(arcsine_sqrt_transformed)
+
+melted_counts <- melt(arcsine_sqrt_transformed)
+ggplot(melted_counts, aes(value)) +
+  geom_histogram(bins = 30, fill = "blue", alpha = 0.7) +
+  labs(title = "Distribution of Counts Data (arcsine-square root transformed)", x = "Counts", y = "Frequency") +
+  theme_minimal()
+
+```
+PCA-arc-sine-sqr-root:
+```{r}
+pca = prcomp(t(arcsine_sqrt_transformed),scale. = TRUE)
+autoplot(pca)
+```
+
+3. PCA on proportions on DESEQ normalised + VST
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts,
+                              colData = meta,
+                              design = ~ Type + Category)
+```
+
+```{r}
+vst_data <- assay(vst(dds, blind=TRUE))
+total_counts <- colSums(vst_data)
+vst_proportion <- data.frame(vst_data) %>% #remove empty COGs
+  dplyr::filter(rowSums(.) > 0) %>% #proportion
+  sweep(2,total_counts, `/`)
+melted_counts <- melt(vst_proportion)
+ggplot(melted_counts, aes(value)) +
+  geom_histogram(bins = 30, fill = "blue", alpha = 0.7) +
+  labs(title = "Distribution of Counts Data (DEseq2-vst)", x = "Counts", y = "Frequency") +
+  theme_minimal()
+```
+
+```{r}
+pca = prcomp(t(vst_data))
+autoplot(pca)
+```
+
+
+5. Bray-curtis + PCoA
+
+```{r}
+bray = vegdist(t(counts_tidy_proportion),distance="bray")
+bray_sqrt=sqrt(bray) #to avoid negative eigenvalues
+pcoa_results <- cmdscale(bray, eig = TRUE, k = 2)  # k is the number of dimensions
+plot(pcoa_results$points[,1], pcoa_results$points[,2],
+     xlab = (pcoa_results$eig[1]/sum(pcoa_results$eig))*100, ylab = (pcoa_results$eig[2]/sum(pcoa_results$eig))*100, main = "PCoA Plot",
+     pch = 19, col = 'blue')  # Adjust color and point character as needed
+
+```
+
+

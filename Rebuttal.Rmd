@@ -1,0 +1,2925 @@
+---
+title: "Effects of microplastics on Daphnia-associated microbiomes in situ and in vitro: REBBUTAL"
+output: html_notebook
+---
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(pcaMethods)
+library(plotly)
+library(vegan)
+```
+
+Reviewer1: 
+In the in situ sampling, the db-RDA seems to indicate that the concentration of microplastics is not a significant factor influencing the bacterial microbiome composition, but that the observed differences between urban and natural ponds are rather explained by other factors (e.g. temperature and chlorophyll). It therefore seems that because of these covarying factors leading to confounding effects, it is not possible to conclude on the effect of microplastics on bacterial microbiome composition. If the authors perform a PCA on these environmental variables (excluding microplastic concentrations), I guess urban and natural ponds will be clearly separated, independently of the plastic effect (which will be indicative of many confounding variables). 
+
+Action:
+The reviewer wants me to perform a PCA on these environmental variables with exclusion of MP. This is to see if there is a clear distinction of the sites based on the collected variables alone.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(ggpubr)
+
+env_data=read.csv('/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/0_REBBUTAL/10_Scripts/files/tables/Supplementary table 3- Sampled pond envirionmental parameters.csv')
+
+# Group-wise median imputation for missing values
+pca_data_groupwise_imputed <- env_data %>%
+  group_by(Type) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.na(.), median(., na.rm = TRUE), .))) %>%
+  ungroup() %>%
+  select(-Location, -Type, -Sample.ID) %>%
+  scale()
+
+# Perform PCA on the scaled data
+pca_result <- prcomp(pca_data_groupwise_imputed, scale. = FALSE)
+
+# Extract the PCA scores and add the "Type" and "Location" variables for coloring and labeling
+pca_scores <- as.data.frame(pca_result$x)
+pca_scores$Type <- env_data$Type  # Use original env_data as the rows are aligned
+pca_scores$Location <- env_data$Location
+
+# Define a buffer to extend the plot limits
+x_buffer <- diff(range(pca_scores$PC1)) * 0.1
+y_buffer <- diff(range(pca_scores$PC2)) * 0.1
+
+# Define colors
+colors <- ifelse(pca_scores$Type == "Urban", "red", "blue")
+
+location_abbreviations <- c(
+    "Kluizen" = "KL",
+    "De Gavers" = "DG",
+    "Evangelie Boom " = "EB",
+    "Reserve next to Kulak" = "RK",
+    "MVR" = "MVR",
+    "Meer van Rotselaar" = "MVR",
+    "Blauwwe Poort" = "BP",
+    "Citadell Park" = "CP",
+    "De Bourgoyen" = "DB",
+    "Donk-Oudenaarde" = "DO",
+    "St. Donatus P. " = "DP",
+    "LRV" = "LRV"
+)
+
+# Add the abbreviated location names as a new column
+pca_scores$Location_Abbreviation <- location_abbreviations[pca_scores$Location]
+
+# Plot with extended limits
+plot(pca_scores$PC1, pca_scores$PC2,
+     col = colors,
+     pch = 19,  # Point style
+     xlab = "PC1",
+     ylab = "PC2",
+     main = "",
+     xlim = range(pca_scores$PC1) + c(-x_buffer, x_buffer),
+     ylim = range(pca_scores$PC2) + c(-y_buffer, y_buffer))
+
+# Add a legend
+legend("bottomleft", legend = c("Urban", "Natural"), col = c("red", "blue"), pch = 19)
+
+# Add the "Pond" or "Location" labels to each point
+text(pca_scores$PC1, pca_scores$PC2, labels = pca_scores$Location_Abbreviation, pos = 4, cex = 0.7)
+
+####Bar-chart
+
+# Define the environmental variables of interest
+env_vars <- c("FINAL.mg.C.L", "Dissolved.oxygen..DO.", "Temperature...C.", "pH", "Conductivity", "Chlorophyll")
+
+# Filter out rows with incomplete information in env_vars
+env_data_filtered <- env_data %>%
+  select(-Sample.ID) %>%
+  na.omit()
+
+library(reshape2)
+env_long <- reshape2::melt(env_data_filtered, id.vars = c("Location", "Type"))
+
+# Create the bar plot with custom colors for Type
+ggplot(env_long, aes(x = Location, y = value, fill = Type)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ variable, scales = "free_y") +  # Separate facets for each variable
+  scale_fill_manual(values = c("Urban" = "red", "Natural" = "blue")) +  # Custom colors for Type
+  labs(x = "Pond", y = "Value", title = "") +
+  theme_pubr() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#Statistical test
+
+pca_data_scaled <- scale(pca_data) #normalize original data to remove effect of different scales
+
+# Calculate the Euclidean distance matrix (you can use other distance metrics as well)
+distance_matrix <- dist(pca_data_scaled, method = "euclidean")
+betadisp_result <- betadisper(distance_matrix, env_data$Type[complete.cases(env_data[, -which(names(env_data) %in% c("Location", "Type", "Sample.ID"))])])
+
+# View the betadisp results
+summary(betadisp_result)
+
+# Perform an ANOVA to test for significant differences in dispersion
+anova_betadisp <- anova(betadisp_result)
+print(anova_betadisp) #0.01375*
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df  Sum Sq Mean Sq F value  Pr(>F)  
+Groups     1  10.635 10.6350  6.4129 0.01375 *
+Residuals 65 107.795  1.6584                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# Perform PERMANOVA (adonis function in vegan package)
+permanova_result <- adonis2(distance_matrix ~ env_data$Type[complete.cases(env_data[, -which(names(env_data) %in% c("Location", "Type", "Sample.ID"))])], method = "euclidean")
+
+# Print the result
+print(permanova_result) #0.001
+
+```
+L162: Performing rarefactions is very criticized in the field of microbial ecology, especially when rarefying to the depth of the samples with the fewest reads. I would recommend sensitivity analyses there, by replicating all the analyses using different depths for rarefactions (e.g. 2,000 and 3,000).
+
+Action: Perform rarefractions using different depths and compare the results with the method used in the paper.
+
+```{r}
+library(phyloseq)
+library(dplyr)
+library(ggplot2)
+library(vegan)
+library(ggpubr)
+```
+
+1. Field sampling campaign:
+
+```{r}
+ps_original=readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Scripts/files/objects/ps_original") #Raw dataset un-normalised 
+
+#Check the read number distribution of the samples
+sort(sample_sums(ps_original), decreasing=FALSE) #4664-36892
+```
+
+Subsample to depth of the lowest sample (like in the original manuscript):
+
+```{r}
+ps_original=rarefy_even_depth(ps_original, sample.size=min(sample_sums(ps_original)), rngseed=1, replace=FALSE) #4664 
+bray <- vegdist(data.frame(t(otu_table(ps_original))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+#permanova: 
+permanova = adonis2(bray ~ data.frame(sample_data(ps_original))$Type)
+print(permanova) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_original))$Type)
+          Df SumOfSqs      R2      F Pr(>F)    
+Model      1    7.117 0.12233 20.071  0.001 ***
+Residual 144   51.062 0.87767                  
+Total    145   58.179 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_original))$Type,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.1767
+
+#Richness- Figure 3B
+
+library(BiocManager)
+library(microbiome)
+library(knitr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_original, index = "all")
+meta <- data.frame(sample_data(ps_original)) #Accessing my sample information from the ps object containing rarefied data
+tab$Type = meta$Type
+
+#Chao1
+print(t.test(chao1~Type, data=tab)) # t = 8.9475, df = 137.71, p-value = 2.186e-15
+#Shannon
+print(t.test(diversity_shannon~Type, data=tab)) # t = 7.3497, df = 143.93, p-value = 1.37e-11
+#Pielou
+print(t.test(evenness_pielou~Type, data=tab)) # t = 3.9496, df = 138.56, p-value = 0.0001241
+
+#PCoA: Bacterioplankton- Figure 3C
+
+ps_original_bac=subset_samples(ps_original, sample_data(ps_original)$Type == "Bacterioplankton")
+bray <- vegdist(data.frame(t(otu_table(ps_original_bac))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_original_bac))$Category)
+print(permanova)
+
+'''
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_original_bac))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.4962 0.04971 4.2893  0.001 ***
+Residual 82  28.6040 0.95029                  
+Total    83  30.1002 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+'''
+
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_original_bac))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.174
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df  Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.03543 0.035427  3.2859 0.07354 .
+Residuals 82 0.88409 0.010782                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+#PCoA: Daphnia- Figure 3D
+
+ps_original_dap=subset_samples(ps_original, sample_data(ps_original)$Type == "Daphnia")
+bray <- vegdist(data.frame(t(otu_table(ps_original_dap))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_original_dap))$Category)
+print(permanova)
+
+'''
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_original_dap))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.8973 0.09051 5.9712  0.001 ***
+Residual 60  19.0642 0.90949                  
+Total    61  20.9615 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+'''
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_original_dap))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.0533 .
+
+'''
+Analysis of Variance Table
+
+Response: Distances
+          Df Sum Sq  Mean Sq F value Pr(>F)  
+Groups     1 0.2363 0.236297  3.8861 0.0533 .
+Residuals 60 3.6483 0.060806                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+'''
+#Envfit and step-wise RDA
+
+#Bacterioplankton
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+bac_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_original_bac))
+
+bray <- vegdist(data.frame(t(otu_table(ps_original_bac))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, bac_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)
+DO             0.26864 -0.96324 0.0688  0.113
+Temperature    0.59922 -0.80059 0.0007  0.976
+pH            -0.05210 -0.99864 0.0331  0.338
+Conductivity   0.55023 -0.83501 0.0048  0.850
+Redox          0.04699 -0.99890 0.0408  0.272
+Chlorophyl     0.34650  0.93805 0.0638  0.121
+MPs            0.09620 -0.99536 0.0145  0.634
+PE.PP          0.10845 -0.99410 0.0280  0.408
+PS            -0.17426  0.98470 0.0036  0.895
+PET.polyester -0.13017  0.99149 0.0080  0.798
+Permutation: free
+Number of permutations: 999
+
+18 observations deleted due to missingness
+"""
+
+#No significant envfit for bacterioplankton
+
+#Daphnia
+dap_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_original_dap))
+
+bray <- vegdist(data.frame(t(otu_table(ps_original_dap))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, dap_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)    
+DO             0.04220  0.99911 0.0888  0.089 .  
+Temperature   -0.10277  0.99471 0.1906  0.004 ** 
+pH             0.99929 -0.03773 0.0182  0.640    
+Conductivity  -0.97803 -0.20845 0.0298  0.488    
+Redox         -0.79022  0.61283 0.1657  0.016 *  
+Chlorophyl     0.84187 -0.53969 0.2421  0.001 ***
+MPs            0.46677 -0.88438 0.1714  0.014 *  
+PE.PP          0.01543 -0.99988 0.0129  0.823    
+PS             0.56856 -0.82264 0.3091  0.001 ***
+PET.polyester  0.54111 -0.84095 0.3193  0.001 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+10 observations deleted due to missingness
+
+"""
+#DB-RDA
+scaled_dap_env_data <- as.data.frame(scale(dap_env_data)) #scale metavariables due to different scales
+# Calculate correlation matrix
+cor_matrix <- cor(scaled_dap_env_data, use = "pairwise.complete.obs")
+library(caret)
+# Identify highly correlated pairs (absolute correlation > 0.7)
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.7, verbose = TRUE)
+reduced_data <- scaled_dap_env_data[,-highly_correlated]
+
+sample_data(ps_original_dap) = reduced_data
+bray = vegdist(data.frame(t(otu_table(ps_original_dap))), method="bray")
+dbrda = dbrda(bray ~ ., reduced_data, dist="bray", na.action = na.exclude)
+summary(dbrda)
+anova(dbrda)
+anova(dbrda, by="terms", permu=999) #Load a full metadata for bacteria:
+plot(dbrda)
+
+"""
+Permutation test for dbrda under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+Model: dbrda(formula = bray ~ Temperature + pH + Conductivity + Redox + Chlorophyl + PE.PP, data = reduced_data, distance = "bray", na.action = na.exclude)
+             Df SumOfSqs      F Pr(>F)   
+Temperature   1   0.9544 3.3637  0.004 **
+pH            1   0.3661 1.2903  0.195   
+Conductivity  1   0.3771 1.3290  0.208   
+Redox         1   0.8795 3.0998  0.003 **
+Chlorophyl    1   0.7430 2.6188  0.016 * 
+PE.PP         1   0.2299 0.8103  0.598   
+Residual     45  12.7680                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+
+
+
+
+```
+Subsample at depth 3000:
+```{r}
+ps_3000=rarefy_even_depth(ps_original, sample.size=3000, rngseed=1, replace=FALSE)
+bray <- vegdist(data.frame(t(otu_table(ps_3000))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+#permanova: 
+permanova = adonis2(bray ~ data.frame(sample_data(ps_3000))$Type)
+print(permanova) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_3000))$Type)
+          Df SumOfSqs      R2      F Pr(>F)    
+Model      1    7.089 0.12177 19.966  0.001 ***
+Residual 144   51.128 0.87823                  
+Total    145   58.217 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_3000))$Type,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.174
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+           Df Sum Sq  Mean Sq F value Pr(>F)
+Groups      1 0.0433 0.043339  1.8664  0.174
+Residuals 144 3.3437 0.023220  
+
+"""
+
+#Richness- Figure 3B
+
+library(BiocManager)
+library(microbiome)
+library(knitr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_3000, index = "all")
+meta <- data.frame(sample_data(ps_3000)) #Accessing my sample information from the ps object containing rarefied data
+tab$Type = meta$Type
+
+#Chao1
+print(t.test(chao1~Type, data=tab)) # t = 8.8971, df = 140.86, p-value = 2.53e-15
+#Shannon
+print(t.test(diversity_shannon~Type, data=tab)) # t = 7.338, df = 143.83, p-value = 1.463e-11
+#Pielou
+print(t.test(evenness_pielou~Type, data=tab)) # t = 4.0117, df = 139.56, p-value = 9.786e-05
+
+#PCoA: Bacterioplankton- Figure 3C
+
+ps_3000_bac=subset_samples(ps_3000, sample_data(ps_3000)$Type == "Bacterioplankton")
+bray <- vegdist(data.frame(t(otu_table(ps_3000_bac))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_3000_bac))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_3000_bac))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.4927 0.04952 4.2723  0.001 ***
+Residual 82  28.6504 0.95048                  
+Total    83  30.1432 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_3000_bac))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.06784
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df  Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.03627 0.036268  3.4243 0.06784 .
+Residuals 82 0.86848 0.010591                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+#PCoA: Daphnia- Figure 3D
+ps_dap=subset_samples(ps_3000, sample_data(ps_3000)$Type == "Daphnia")
+bray <- vegdist(data.frame(t(otu_table(ps_3000_dap))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_3000_dap))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_3000_dap))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1    1.902 0.09064 5.9803  0.001 ***
+Residual 60   19.083 0.90936                  
+Total    61   20.985 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_3000_dap))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.05069
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.2402 0.240227  3.9763 0.05069 .
+Residuals 60 3.6249 0.060414                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+#Envfit and step-wise RDA
+
+#Bacterioplankton
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+bac_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_3000_bac))
+sam_data_bac = subset(meta,rownames(meta) %in% sample_names(ps_3000_bac))
+
+bray <- vegdist(data.frame(t(otu_table(ps_3000_bac))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, bac_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)  
+DO             0.26052 -0.96547 0.0741  0.093 .
+Temperature    0.38796 -0.92168 0.0006  0.981  
+pH            -0.56248 -0.82681 0.0291  0.405  
+Conductivity   0.58483 -0.81115 0.0079  0.786  
+Redox          0.12573 -0.99206 0.0514  0.187  
+Chlorophyl     0.49643  0.86807 0.0661  0.105  
+MPs            0.27999 -0.96000 0.0177  0.584  
+PE.PP          0.26363 -0.96462 0.0363  0.305  
+PS            -0.18196  0.98331 0.0060  0.829  
+PET.polyester -0.27525  0.96137 0.0140  0.644  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+18 observations deleted due to missingness
+"""
+
+#No significant envfit for bacterioplankton
+
+#Daphnia
+dap_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_dap))
+sam_data_bac = subset(meta,rownames(meta) %in% sample_names(ps_dap))
+
+bray <- vegdist(data.frame(t(otu_table(ps_dap))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, dap_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)    
+DO             0.04220  0.99911 0.0888  0.089 .  
+Temperature   -0.10277  0.99471 0.1906  0.004 ** 
+pH             0.99929 -0.03773 0.0182  0.640    
+Conductivity  -0.97803 -0.20845 0.0298  0.488    
+Redox         -0.79022  0.61283 0.1657  0.016 *  
+Chlorophyl     0.84187 -0.53969 0.2421  0.001 ***
+MPs            0.46677 -0.88438 0.1714  0.014 *  
+PE.PP          0.01543 -0.99988 0.0129  0.823    
+PS             0.56856 -0.82264 0.3091  0.001 ***
+PET.polyester  0.54111 -0.84095 0.3193  0.001 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+10 observations deleted due to missingness
+
+"""
+#DB-RDA
+scaled_dap_env_data <- as.data.frame(scale(dap_env_data)) #scale metavariables due to different scales
+# Calculate correlation matrix
+cor_matrix <- cor(scaled_dap_env_data, use = "pairwise.complete.obs")
+library(caret)
+# Identify highly correlated pairs (absolute correlation > 0.7)
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.7, verbose = TRUE)
+reduced_data <- scaled_dap_env_data[,-highly_correlated]
+
+sample_data(ps_rarified_dap) = reduced_data
+bray = vegdist(data.frame(t(otu_table(ps_dap))), method="bray")
+dbrda = dbrda(bray ~ ., reduced_data, dist="bray", na.action = na.exclude)
+summary(dbrda)
+anova(dbrda)
+anova(dbrda, by="terms", permu=999) #Load a full metadata for bacteria:
+plot(dbrda)
+
+"""
+Permutation test for dbrda under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+Model: dbrda(formula = bray ~ Temperature + pH + Conductivity + Redox + Chlorophyl + PE.PP, data = reduced_data, distance = "bray", na.action = na.exclude)
+             Df SumOfSqs      F Pr(>F)   
+Temperature   1   0.9544 3.3637  0.004 **
+pH            1   0.3661 1.2903  0.195   
+Conductivity  1   0.3771 1.3290  0.208   
+Redox         1   0.8795 3.0998  0.003 **
+Chlorophyl    1   0.7430 2.6188  0.016 * 
+PE.PP         1   0.2299 0.8103  0.598   
+Residual     45  12.7680                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+```
+
+
+#Subsample at depth 4000
+
+```{r}
+ps_4000=rarefy_even_depth(ps_original, sample.size=4000, rngseed=1, replace=FALSE)
+bray <- vegdist(data.frame(t(otu_table(ps_4000))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+#permanova: 
+permanova = adonis2(bray ~ data.frame(sample_data(ps_4000))$Type)
+print(permanova) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_4000))$Type)
+          Df SumOfSqs      R2      F Pr(>F)    
+Model      1    7.147 0.12289 20.175  0.001 ***
+Residual 144   51.010 0.87711                  
+Total    145   58.157 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_4000))$Type,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.1784
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+           Df Sum Sq Mean Sq F value Pr(>F)
+Groups      1 0.0428 0.04277  1.8286 0.1784
+Residuals 144 3.3682 0.02339    
+
+"""
+
+#Richness- Figure 3B
+
+library(BiocManager)
+library(microbiome)
+library(knitr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_4000, index = "all")
+meta <- data.frame(sample_data(ps_4000)) #Accessing my sample information from the ps object containing rarefied data
+tab$Type = meta$Type
+
+#Chao1
+print(t.test(chao1~Type, data=tab)) # t = 8.6405, df = 140.11, p-value = 1.139e-14
+#Shannon
+print(t.test(diversity_shannon~Type, data=tab)) # t = 7.3735, df = 143.93, p-value = 1.203e-11
+#Pielou
+print(t.test(evenness_pielou~Type, data=tab)) # t = 3.9666, df = 138.8, p-value = 0.0001163
+
+#PCoA: Bacterioplankton- Figure 3C
+
+ps_4000_bac=subset_samples(ps_4000, sample_data(ps_4000)$Type == "Bacterioplankton")
+bray <- vegdist(data.frame(t(otu_table(ps_4000_bac))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_4000_bac))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_4000_bac))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.4797 0.04923 4.2456  0.001 ***
+Residual 82  28.5789 0.95077                  
+Total    83  30.0585 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_4000_bac))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.06961 .
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df  Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.03617 0.036168  3.3801 0.06961 .
+Residuals 82 0.87741 0.010700                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+#PCoA: Daphnia- Figure 3D
+ps_dap_4000=subset_samples(ps_4000, sample_data(ps_4000)$Type == "Daphnia")
+bray <- vegdist(data.frame(t(otu_table(ps_dap_4000))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_dap_4000))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_dap_4000))$Category)
+         Df SumOfSqs   R2      F Pr(>F)    
+Model     1   1.8857 0.09 5.9341  0.001 ***
+Residual 60  19.0660 0.91                  
+Total    61  20.9517 1.00                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_dap_4000))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.05069
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.2381 0.238136  3.9265 0.05212 .
+Residuals 60 3.6389 0.060649                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+#Envfit and step-wise RDA
+
+#Bacterioplankton
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+bac_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_4000_bac))
+
+bray <- vegdist(data.frame(t(otu_table(ps_4000_bac))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, bac_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)
+DO             0.31032 -0.95063 0.0709  0.100
+Temperature    0.73785 -0.67496 0.0001  0.996
+pH            -0.30906 -0.95104 0.0259  0.418
+Conductivity   0.58537 -0.81076 0.0095  0.746
+Redox          0.10810 -0.99414 0.0456  0.227
+Chlorophyl     0.49233  0.87041 0.0632  0.129
+MPs            0.26715 -0.96365 0.0163  0.593
+PE.PP          0.22871 -0.97349 0.0332  0.355
+PS            -0.05412  0.99853 0.0056  0.833
+PET.polyester -0.16522  0.98626 0.0109  0.714
+Permutation: free
+Number of permutations: 999
+
+18 observations deleted due to missingness
+"""
+
+#No significant envfit for bacterioplankton
+
+#Daphnia
+dap_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_dap_4000))
+
+bray <- vegdist(data.frame(t(otu_table(ps_dap_4000))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, dap_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)    
+DO             0.04220  0.99911 0.0888  0.089 .  
+Temperature   -0.10277  0.99471 0.1906  0.004 ** 
+pH             0.99929 -0.03773 0.0182  0.640    
+Conductivity  -0.97803 -0.20845 0.0298  0.488    
+Redox         -0.79022  0.61283 0.1657  0.016 *  
+Chlorophyl     0.84187 -0.53969 0.2421  0.001 ***
+MPs            0.46677 -0.88438 0.1714  0.014 *  
+PE.PP          0.01543 -0.99988 0.0129  0.823    
+PS             0.56856 -0.82264 0.3091  0.001 ***
+PET.polyester  0.54111 -0.84095 0.3193  0.001 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+10 observations deleted due to missingness
+
+"""
+#DB-RDA
+scaled_dap_env_data <- as.data.frame(scale(dap_env_data)) #scale metavariables due to different scales
+# Calculate correlation matrix
+cor_matrix <- cor(scaled_dap_env_data, use = "pairwise.complete.obs")
+library(caret)
+# Identify highly correlated pairs (absolute correlation > 0.7)
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.7, verbose = TRUE)
+reduced_data <- scaled_dap_env_data[,-highly_correlated]
+
+sample_data(ps_dap_4000) = reduced_data
+bray = vegdist(data.frame(t(otu_table(ps_dap_4000))), method="bray")
+dbrda = dbrda(bray ~ ., reduced_data, dist="bray", na.action = na.exclude)
+summary(dbrda)
+anova(dbrda)
+anova(dbrda, by="terms", permu=999) #Load a full metadata for bacteria:
+plot(dbrda)
+
+"""
+Permutation test for dbrda under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+Model: dbrda(formula = bray ~ Temperature + pH + Conductivity + Redox + Chlorophyl + PE.PP, data = reduced_data, distance = "bray", na.action = na.exclude)
+             Df SumOfSqs      F Pr(>F)   
+Temperature   1   0.9544 3.3637  0.004 **
+pH            1   0.3661 1.2903  0.195   
+Conductivity  1   0.3771 1.3290  0.208   
+Redox         1   0.8795 3.0998  0.003 **
+Chlorophyl    1   0.7430 2.6188  0.016 * 
+PE.PP         1   0.2299 0.8103  0.598   
+Residual     45  12.7680                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+```
+
+
+```{r}
+#Subsample at depth 5000
+ps_5000=rarefy_even_depth(ps_original, sample.size=5000, rngseed=1, replace=FALSE) #sample loss: N108
+bray <- vegdist(data.frame(t(otu_table(ps_5000))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+#permanova: 
+permanova = adonis2(bray ~ data.frame(sample_data(ps_5000))$Type)
+print(permanova) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_5000))$Type)
+          Df SumOfSqs      R2      F Pr(>F)    
+Model      1    7.265 0.12562 20.544  0.001 ***
+Residual 143   50.566 0.87438                  
+Total    144   57.831 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_5000))$Type,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.1999
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+           Df Sum Sq  Mean Sq F value Pr(>F)
+Groups      1 0.0393 0.039267  1.6587 0.1999
+Residuals 143 3.3852 0.023672     
+
+"""
+
+#Richness- Figure 3B
+
+library(BiocManager)
+library(microbiome)
+library(knitr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_5000, index = "all")
+meta <- data.frame(sample_data(ps_5000)) #Accessing my sample information from the ps object containing rarefied data
+tab$Type = meta$Type
+
+#Chao1
+print(t.test(chao1~Type, data=tab)) # t = 8.835, df = 137.79, p-value = 4.145e-15
+#Shannon
+print(t.test(diversity_shannon~Type, data=tab)) # t = 7.351, df = 143, p-value = 1.39e-11
+#Pielou
+print(t.test(evenness_pielou~Type, data=tab)) # t = 3.8087, df = 137.37, p-value = 0.0002098
+
+#PCoA: Bacterioplankton- Figure 3C
+
+ps_5000_bac=subset_samples(ps_5000, sample_data(ps_5000)$Type == "Bacterioplankton")
+bray <- vegdist(data.frame(t(otu_table(ps_5000_bac))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_5000_bac))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_5000_bac))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.4871 0.05024 4.2843  0.001 ***
+Residual 81  28.1155 0.94976                  
+Total    82  29.6026 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_5000_bac))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.08503 .
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df  Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.03374 0.033743  3.0401 0.08503 .
+Residuals 81 0.89904 0.011099                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+#PCoA: Daphnia- Figure 3D
+ps_dap_5000=subset_samples(ps_5000, sample_data(ps_5000)$Type == "Daphnia")
+bray <- vegdist(data.frame(t(otu_table(ps_dap_5000))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_dap_5000))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_dap_5000))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.9006 0.09066 5.9819  0.001 ***
+Residual 60  19.0630 0.90934                  
+Total    61  20.9636 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_dap_5000))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.05069
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.2396 0.239608  3.9408 0.05171 .
+Residuals 60 3.6481 0.060802                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+#Envfit and step-wise RDA
+
+#Bacterioplankton
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+bac_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_5000_bac))
+
+bray <- vegdist(data.frame(t(otu_table(ps_5000_bac))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, bac_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)
+DO             0.71797  0.69608 0.0324  0.344
+Temperature    0.42335  0.90597 0.0008  0.976
+pH            -0.99786 -0.06542 0.0159  0.623
+Conductivity   0.63134  0.77550 0.0065  0.811
+Redox          0.53990  0.84173 0.0622  0.145
+Chlorophyl     0.20001 -0.97979 0.0349  0.351
+MPs            0.25706  0.96640 0.0037  0.889
+PE.PP          0.47169  0.88176 0.0165  0.581
+PS            -0.70209 -0.71208 0.0185  0.560
+PET.polyester -0.60163 -0.79878 0.0284  0.424
+Permutation: free
+Number of permutations: 999
+
+18 observations deleted due to missingness
+"""
+
+#No significant envfit for bacterioplankton
+
+#Daphnia
+dap_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_dap_5000))
+
+bray <- vegdist(data.frame(t(otu_table(ps_dap_5000))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, dap_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)  
+DO             0.74290 -0.66940 0.0754  0.147  
+Temperature    0.69695 -0.71712 0.0646  0.205  
+pH             0.93442 -0.35618 0.0270  0.520  
+Conductivity  -0.71458 -0.69955 0.0424  0.315  
+Redox         -0.91911 -0.39400 0.0755  0.134  
+Chlorophyl     0.98975  0.14284 0.1557  0.011 *
+MPs            0.88969 -0.45657 0.0234  0.529  
+PE.PP          0.23539 -0.97190 0.0290  0.420  
+PS             0.85326  0.52149 0.0527  0.257  
+PET.polyester  0.59598  0.80300 0.0515  0.253  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+10 observations deleted due to missingness
+
+"""
+#DB-RDA
+scaled_dap_env_data <- as.data.frame(scale(dap_env_data)) #scale metavariables due to different scales
+# Calculate correlation matrix
+cor_matrix <- cor(scaled_dap_env_data, use = "pairwise.complete.obs")
+library(caret)
+# Identify highly correlated pairs (absolute correlation > 0.7)
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.7, verbose = TRUE)
+reduced_data <- scaled_dap_env_data[,-highly_correlated]
+
+sample_data(ps_dap_5000) = reduced_data
+bray = vegdist(data.frame(t(otu_table(ps_dap_5000))), method="bray")
+dbrda = dbrda(bray ~ ., reduced_data, dist="bray", na.action = na.exclude)
+summary(dbrda)
+anova(dbrda)
+anova(dbrda, by="terms", permu=999) #Load a full metadata for bacteria:
+plot(dbrda)
+
+"""
+Permutation test for dbrda under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+Model: dbrda(formula = bray ~ Temperature + pH + Conductivity + Redox + Chlorophyl + PE.PP, data = reduced_data, distance = "bray", na.action = na.exclude)
+             Df SumOfSqs      F Pr(>F)   
+Temperature   1   0.9390 3.3130  0.006 **
+pH            1   0.3670 1.2949  0.204   
+Conductivity  1   0.3761 1.3269  0.205   
+Redox         1   0.8797 3.1036  0.010 **
+Chlorophyl    1   0.7471 2.6359  0.015 * 
+PE.PP         1   0.2272 0.8016  0.624   
+Residual     45  12.7549                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+```
+
+
+```{r}
+#Subsample at depth 6000
+ps_6000=rarefy_even_depth(ps_original, sample.size=6000, rngseed=1, replace=FALSE) #2 samples lost N108N71
+bray <- vegdist(data.frame(t(otu_table(ps_6000))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+#permanova: 
+permanova = adonis2(bray ~ data.frame(sample_data(ps_6000))$Type)
+print(permanova) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_6000))$Type)
+          Df SumOfSqs      R2      F Pr(>F)    
+Model      1    7.308 0.12746 20.744  0.001 ***
+Residual 142   50.029 0.87254                  
+Total    143   57.338 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_6000))$Type,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.1999
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+           Df Sum Sq  Mean Sq F value Pr(>F)
+Groups      1 0.0332 0.033186  1.3924   0.24
+Residuals 142 3.3845 0.023834      
+
+"""
+
+#Richness- Figure 3B
+
+library(BiocManager)
+library(microbiome)
+library(knitr)
+#install.packages("patchwork")
+library(patchwork)
+
+tab <-microbiome::alpha(ps_6000, index = "all")
+meta <- data.frame(sample_data(ps_6000)) #Accessing my sample information from the ps object containing rarefied data
+tab$Type = meta$Type
+
+#Chao1
+print(t.test(chao1~Type, data=tab)) # t = 9.0019, df = 136.33, p-value = 1.71e-15
+#Shannon
+print(t.test(diversity_shannon~Type, data=tab)) # t = 7.5785, df = 141.97, p-value = 4.125e-12
+#Pielou
+print(t.test(evenness_pielou~Type, data=tab)) # t = 4.0128, df = 137.13, p-value = 9.822e-05
+
+#PCoA: Bacterioplankton- Figure 3C
+
+ps_6000_bac=subset_samples(ps_6000, sample_data(ps_6000)$Type == "Bacterioplankton")
+bray <- vegdist(data.frame(t(otu_table(ps_6000_bac))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_6000_bac))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_6000_bac))$Category)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.4625 0.05036 4.2422  0.001 ***
+Residual 80  27.5789 0.94964                  
+Total    81  29.0413 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_6000_bac))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.1091.
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df  Sum Sq  Mean Sq F value Pr(>F)
+Groups     1 0.02996 0.029956  2.6256 0.1091
+Residuals 80 0.91273 0.011409  
+
+"""
+
+#PCoA: Daphnia- Figure 3D
+ps_dap_6000=subset_samples(ps_6000, sample_data(ps_6000)$Type == "Daphnia")
+bray <- vegdist(data.frame(t(otu_table(ps_dap_6000))), method="bray") 
+
+#Permanova_test
+permanova = adonis2(bray ~ data.frame(sample_data(ps_dap_6000))$Category)
+print(permanova)
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ data.frame(sample_data(ps_dap_6000))$Category)
+         Df SumOfSqs      R2     F Pr(>F)    
+Model     1   1.8987 0.09047 5.968  0.001 ***
+Residual 60  19.0892 0.90953                 
+Total    61  20.9879 1.00000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+# test homogeneity of variance
+homog_test_cat <- betadisper(bray, data.frame(sample_data(ps_dap_6000))$Category,bias.adjust=TRUE) #Calculate multivariate dispersions
+disp_category=anova(homog_test_cat) #Perform test
+print(disp_category) #0.05269 .
+
+"""
+Analysis of Variance Table
+
+Response: Distances
+          Df Sum Sq  Mean Sq F value  Pr(>F)  
+Groups     1 0.2396 0.239608  3.9408 0.05171 .
+Residuals 60 3.6481 0.060802                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+#Envfit and step-wise RDA
+
+#Bacterioplankton
+env_meta <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Env_parameters+MPs.csv", row.names = 1)
+bac_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_6000_bac))
+
+bray <- vegdist(data.frame(t(otu_table(ps_6000_bac))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, bac_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)  
+DO            -0.24301 -0.97002 0.0857  0.067 .
+Temperature   -0.71727 -0.69680 0.0093  0.755  
+pH            -0.27119 -0.96253 0.0061  0.850  
+Conductivity  -0.70149 -0.71268 0.0031  0.912  
+Redox         -0.08037 -0.99676 0.0434  0.265  
+Chlorophyl     0.11565  0.99329 0.0083  0.781  
+MPs            0.06173 -0.99809 0.0047  0.867  
+PE.PP         -0.20846 -0.97803 0.0157  0.585  
+PS             0.56806  0.82299 0.0143  0.652  
+PET.polyester  0.60046  0.79965 0.0140  0.616  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+"""
+
+#No significant envfit for bacterioplankton
+
+#Daphnia
+dap_env_data = subset(env_meta,rownames(env_meta) %in% sample_names(ps_dap_6000))
+
+bray <- vegdist(data.frame(t(otu_table(ps_dap_6000))), method="bray")
+nMDS <- metaMDS(bray,k=2,distance = 'bray')
+
+envfit_result <- envfit(nMDS, dap_env_data, permutations = 999, na.rm = TRUE) #Remove rows with missing samples
+envfit_result
+
+"""
+***VECTORS
+
+                 NMDS1    NMDS2     r2 Pr(>r)    
+DO             0.02122  0.99977 0.0589  0.212    
+Temperature   -0.24641  0.96917 0.1674  0.013 *  
+pH             0.97048 -0.24117 0.0227  0.591    
+Conductivity  -0.99993  0.01215 0.0423  0.343    
+Redox         -0.85386  0.52050 0.1721  0.010 ** 
+Chlorophyl     0.90251 -0.43067 0.2395  0.002 ** 
+MPs            0.57539 -0.81788 0.1765  0.013 *  
+PE.PP          0.11001 -0.99393 0.0151  0.759    
+PS             0.67765 -0.73538 0.3131  0.001 ***
+PET.polyester  0.65929 -0.75189 0.3140  0.001 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+Permutation: free
+Number of permutations: 999
+
+10 observations deleted due to missingness
+
+"""
+#DB-RDA
+scaled_dap_env_data <- as.data.frame(scale(dap_env_data)) #scale metavariables due to different scales
+# Calculate correlation matrix
+cor_matrix <- cor(scaled_dap_env_data, use = "pairwise.complete.obs")
+library(caret)
+# Identify highly correlated pairs (absolute correlation > 0.7)
+highly_correlated <- findCorrelation(cor_matrix, cutoff = 0.7, verbose = TRUE)
+reduced_data <- scaled_dap_env_data[,-highly_correlated]
+
+sample_data(ps_dap_6000) = reduced_data
+bray = vegdist(data.frame(t(otu_table(ps_dap_6000))), method="bray")
+dbrda = dbrda(bray ~ ., reduced_data, dist="bray", na.action = na.exclude)
+summary(dbrda)
+anova(dbrda)
+anova(dbrda, by="terms", permu=999) #Load a full metadata for bacteria:
+plot(dbrda)
+
+"""
+Permutation test for dbrda under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+Model: dbrda(formula = bray ~ Temperature + pH + Conductivity + Redox + Chlorophyl + PE.PP, data = reduced_data, distance = "bray", na.action = na.exclude)
+             Df SumOfSqs      F Pr(>F)   
+Temperature   1   0.9390 3.3130  0.006 **
+pH            1   0.3670 1.2949  0.204   
+Conductivity  1   0.3761 1.3269  0.205   
+Redox         1   0.8797 3.1036  0.010 **
+Chlorophyl    1   0.7471 2.6359  0.015 * 
+PE.PP         1   0.2272 0.8016  0.624   
+Residual     45  12.7549                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+```
+
+2. MP exposure experiments:
+
+Original rarefraction from the manuscript (rarefied to the lowest depth)
+```{r}
+ps_original=readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq.rds")
+
+#Figure 7A
+
+#Rarefy
+sort(sample_sums(ps_original), decreasing=FALSE)
+set_depth <- 1563
+merged_phyloseq_rarified <- rarefy_even_depth(ps_original, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(merged_phyloseq_rarified))
+sample_data(merged_phyloseq) = meta
+
+#Post-exposure control (no MPs) daphnia vs bacterioplankton (no MPs)
+
+subset_phyloseq <- subset_samples(merged_phyloseq_rarified, 
+                                  (Category == "Daphnia: Post-exposure" & Plastic == "C" & Pond!="H2O") |
+                                    (Category == "Bacterioplankton: Post-exposure" & Plastic == "C" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.1785537 
+
+# Run PERMANOVA using adonis
+permanova_result <- adonis2(bray~ Category, data = meta, method = "bray")
+# View the results
+print(permanova_result) #0.019 *
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Category, data = meta, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)  
+Model     1   0.6161 0.08171 2.1356  0.019 *
+Residual 24   6.9241 0.91829                
+Total    25   7.5402 1.00000                
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+#Check assumptions of constant variance
+dispersion_test <- betadisper(bray, meta$Category)
+plot(dispersion_test)
+permutest(dispersion_test,permutations = 999) #0.727
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.00155 0.0015462 0.1119    999  0.728
+Residuals 24 0.33158 0.0138158 
+"""
+
+#Richness
+tab <-microbiome::alpha(subset_phyloseq, index = "all")
+tab$Category = meta$Category
+
+print(t.test(chao1~Category, data=tab)) # t = 1.1791, df = 10.793, p-value = 0.2637
+print(t.test(diversity_shannon~Category, data=tab)) # t = 2.404, df = 17.896, p-value = 0.02727
+print(t.test(evenness_pielou~Category, data=tab)) # t = 2.1094, df = 17.969, p-value = 0.0492
+
+#Figure 7C
+ps_bac <- subset_samples(ps_original, Type=='Bacterioplankton')
+
+#Rarefy
+sort(sample_sums(ps_bac), decreasing=FALSE)
+set_depth <- 1563
+bac_phyloseq_rarified <- rarefy_even_depth(ps_bac, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(bac_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(bac_phyloseq_rarified, 
+                                  (Category == "Bacterioplankton: Post-exposure" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.161388
+
+# Assuming 'meta' is your dataframe
+meta$Daphnia_present <- ifelse(meta$Clone == "C", "Yes", "No")
+sample_data(subset_phyloseq) = meta
+
+permanova_result <- adonis2(bray~ Daphnia_present, data = meta, method = "bray")
+print(permanova_result) #0.002 **
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Daphnia_present, data = meta, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)   
+Model     1   1.1942 0.04989 4.3584  0.002 **
+Residual 83  22.7421 0.95011                 
+Total    84  23.9363 1.00000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+dispersion_test <- betadisper(bray, meta$Daphnia_present)
+permutest(dispersion_test,permutations = 999) #0.105
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.03919 0.039190 2.9401    999  0.105
+Residuals 83 1.10634 0.013329       
+"""
+
+#Figure 7D
+ps_dap <- subset_samples(ps_original, Type=='Daphnia')
+
+#Rarefy
+sort(sample_sums(ps_dap), decreasing=FALSE)
+set_depth <- 2494
+dap_phyloseq_rarified <- rarefy_even_depth(ps_dap, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(dap_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(dap_phyloseq_rarified, Category== "Daphnia: Post-exposure" | Category== "Juvenile: Post-exposure")
+meta_data <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") 
+nmds_result <- metaMDS(bray, trymax = 100,k=2) #0.2255931 - stress value is too high 
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Calculate total variance to normalize eigenvalues
+total_variance <- sum(PCoA_result$CA$eig)
+
+# Calculate percentage of variance explained by the first two axes
+percent_var1 <- PCoA_result$CA$eig[1] / total_variance * 100
+percent_var2 <- PCoA_result$CA$eig[2] / total_variance * 100
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+p <- plot_ordination(subset_phyloseq, PCoA_result, color = "Pond", shape = "Plastic") +  
+  geom_point(size = 3) +  
+  scale_shape_manual(values = c(4, 16, 17, 15)) +  # Distinguishable shapes, 19 for NA
+  scale_colour_manual(values = c("red", "blue"), na.value = "grey50") +  
+  labs(title = "", 
+       x = paste0("PCoA1 (", format(percent_var1, digits = 2), "%)"), 
+       y = paste0("PCoA2 (", format(percent_var2, digits = 2), "%)"), 
+       color = "Bacterioplankton inoculum",
+       shape = "Control") +  # Change MP treatment to Control
+  theme_pubr()
+
+```
+
+Rarefraction to 1000
+```{r}
+ps_original=readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq.rds")
+
+#Figure 7A
+
+#Rarefy
+sort(sample_sums(ps_original), decreasing=FALSE)
+set_depth <- 1000
+merged_phyloseq_rarified <- rarefy_even_depth(ps_original, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(merged_phyloseq_rarified))
+
+#Post-exposure control (no MPs) daphnia vs bacterioplankton (no MPs)
+
+subset_phyloseq <- subset_samples(merged_phyloseq_rarified, 
+                                  (Category == "Daphnia: Post-exposure" & Plastic == "C" & Pond!="H2O") |
+                                    (Category == "Bacterioplankton: Post-exposure" & Plastic == "C" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 1705148
+
+# Run PERMANOVA using adonis
+permanova_result <- adonis2(bray~ Category, data = meta, method = "bray")
+# View the results
+print(permanova_result) #0.022 *
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Category, data = meta, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)  
+Model     1   0.6070 0.08036 2.0973  0.022 *
+Residual 24   6.9459 0.91964                
+Total    25   7.5528 1.00000                
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+#Check assumptions of constant variance
+dispersion_test <- betadisper(bray, meta$Category)
+plot(dispersion_test)
+permutest(dispersion_test,permutations = 999) #0.756
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df   Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.001087 0.0010874 0.0834    999  0.756
+Residuals 24 0.312783 0.0130326       
+"""
+
+#Richness
+tab <-microbiome::alpha(subset_phyloseq, index = "all")
+tab$Category = meta$Category
+
+print(t.test(chao1~Category, data=tab)) # t = 1.7419, df = 14.511, p-value = 0.1027
+print(t.test(diversity_shannon~Category, data=tab)) # t = 2.3356, df = 17.769, p-value = 0.03145
+print(t.test(evenness_pielou~Category, data=tab)) # t = 2.0169, df = 17.005, p-value = 0.05978
+
+#Figure 7C
+ps_bac <- subset_samples(ps_original, Type=='Bacterioplankton')
+
+#Rarefy
+sort(sample_sums(ps_bac), decreasing=FALSE)
+set_depth <- 1000
+bac_phyloseq_rarified <- rarefy_even_depth(ps_bac, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(bac_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(bac_phyloseq_rarified, 
+                                  (Category == "Bacterioplankton: Post-exposure" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.1690458
+
+# Assuming 'meta' is your dataframe
+meta$Daphnia_present <- ifelse(meta$Clone == "C", "Yes", "No")
+sample_data(subset_phyloseq) = meta
+
+permanova_result <- adonis2(bray~ Daphnia_present, data = meta, method = "bray")
+print(permanova_result) #0.002 **
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Daphnia_present, data = meta, method = "bray")
+         Df SumOfSqs      R2     F Pr(>F)   
+Model     1   1.1918 0.04954 4.326  0.002 **
+Residual 83  22.8654 0.95046                
+Total    84  24.0571 1.00000                
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+dispersion_test <- betadisper(bray, meta$Daphnia_present)
+permutest(dispersion_test,permutations = 999) # 0.097 .
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq     F N.Perm Pr(>F)  
+Groups     1 0.03797 0.037970 2.772    999  0.097 .
+Residuals 83 1.13691 0.013698                      
+ 
+"""
+
+#Figure 7D
+ps_dap <- subset_samples(ps_original, Type=='Daphnia')
+
+#Rarefy
+sort(sample_sums(ps_dap), decreasing=FALSE)
+set_depth <- 1000
+dap_phyloseq_rarified <- rarefy_even_depth(ps_dap, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(dap_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(dap_phyloseq_rarified, Category== "Daphnia: Post-exposure" | Category== "Juvenile: Post-exposure")
+meta_data <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") 
+nmds_result <- metaMDS(bray, trymax = 100,k=2) #0.2355906 - stress value is too high 
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Calculate total variance to normalize eigenvalues
+total_variance <- sum(PCoA_result$CA$eig)
+
+# Calculate percentage of variance explained by the first two axes
+percent_var1 <- PCoA_result$CA$eig[1] / total_variance * 100
+percent_var2 <- PCoA_result$CA$eig[2] / total_variance * 100
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+p <- plot_ordination(subset_phyloseq, PCoA_result, color = "Pond", shape = "Plastic") +  
+  geom_point(size = 3) +  
+  scale_shape_manual(values = c(4, 16, 17, 15)) +  # Distinguishable shapes, 19 for NA
+  scale_colour_manual(values = c("red", "blue"), na.value = "grey50") +  
+  labs(title = "", 
+       x = paste0("PCoA1 (", format(percent_var1, digits = 2), "%)"), 
+       y = paste0("PCoA2 (", format(percent_var2, digits = 2), "%)"), 
+       color = "Bacterioplankton inoculum",
+       shape = "Control") +  # Change MP treatment to Control
+  theme_pubr()
+
+```
+
+Rarefraction to 1500
+```{r}
+ps_original=readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq.rds")
+
+#Figure 7A
+
+#Rarefy
+set_depth <- 1500
+merged_phyloseq_rarified <- rarefy_even_depth(ps_original, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(merged_phyloseq_rarified))
+
+#Post-exposure control (no MPs) daphnia vs bacterioplankton (no MPs)
+
+subset_phyloseq <- subset_samples(merged_phyloseq_rarified, 
+                                  (Category == "Daphnia: Post-exposure" & Plastic == "C" & Pond!="H2O") |
+                                    (Category == "Bacterioplankton: Post-exposure" & Plastic == "C" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.1773383
+
+# Run PERMANOVA using adonis
+permanova_result <- adonis2(bray~ Category, data = meta, method = "bray")
+# View the results
+print(permanova_result) #0.019 *
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Category, data = meta, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)  
+Model     1   0.6150 0.08136 2.1257  0.019 *
+Residual 24   6.9433 0.91864                
+Total    25   7.5582 1.00000                
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+#Check assumptions of constant variance
+dispersion_test <- betadisper(bray, meta$Category)
+plot(dispersion_test)
+permutest(dispersion_test,permutations = 999) #0.692
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df   Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.001747 0.0017472 0.1367    999  0.692
+Residuals 24 0.306733 0.0127805       
+"""
+
+#Richness
+tab <-microbiome::alpha(subset_phyloseq, index = "all")
+tab$Category = meta$Category
+
+print(t.test(chao1~Category, data=tab)) # t = 1.1279, df = 11.897, p-value = 0.2816
+print(t.test(diversity_shannon~Category, data=tab)) # t = 2.4712, df = 18.075, p-value = 0.02364
+print(t.test(evenness_pielou~Category, data=tab)) # t = 2.2733, df = 18.18, p-value = 0.03536
+
+#Figure 7C
+ps_bac <- subset_samples(ps_original, Type=='Bacterioplankton')
+
+#Rarefy
+set_depth <- 1500
+bac_phyloseq_rarified <- rarefy_even_depth(ps_bac, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(bac_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(bac_phyloseq_rarified, 
+                                  (Category == "Bacterioplankton: Post-exposure" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.1697196
+
+# Assuming 'meta' is your dataframe
+meta$Daphnia_present <- ifelse(meta$Clone == "C", "Yes", "No")
+sample_data(subset_phyloseq) = meta
+
+permanova_result <- adonis2(bray~ Daphnia_present, data = meta, method = "bray")
+print(permanova_result) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Daphnia_present, data = meta, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.1598 0.04848 4.2291  0.001 ***
+Residual 83  22.7613 0.95152                  
+Total    84  23.9211 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+dispersion_test <- betadisper(bray, meta$Daphnia_present)
+permutest(dispersion_test,permutations = 999) # 0.098 .
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq      F N.Perm Pr(>F)  
+Groups     1 0.03882 0.038821 2.8865    999  0.098 .
+Residuals 83 1.11629 0.013449                       
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1                 
+ 
+"""
+
+#Figure 7D
+ps_dap <- subset_samples(ps_original, Type=='Daphnia')
+
+#Rarefy
+set_depth <- 1500
+dap_phyloseq_rarified <- rarefy_even_depth(ps_dap, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(dap_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(dap_phyloseq_rarified, Category== "Daphnia: Post-exposure" | Category== "Juvenile: Post-exposure")
+meta_data <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") 
+nmds_result <- metaMDS(bray, trymax = 100,k=2) #0.2265235 - stress value is too high 
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Calculate total variance to normalize eigenvalues
+total_variance <- sum(PCoA_result$CA$eig)
+
+# Calculate percentage of variance explained by the first two axes
+percent_var1 <- PCoA_result$CA$eig[1] / total_variance * 100
+percent_var2 <- PCoA_result$CA$eig[2] / total_variance * 100
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+p <- plot_ordination(subset_phyloseq, PCoA_result, color = "Pond", shape = "Plastic") +  
+  geom_point(size = 3) +  
+  scale_shape_manual(values = c(4, 16, 17, 15)) +  # Distinguishable shapes, 19 for NA
+  scale_colour_manual(values = c("red", "blue"), na.value = "grey50") +  
+  labs(title = "", 
+       x = paste0("PCoA1 (", format(percent_var1, digits = 2), "%)"), 
+       y = paste0("PCoA2 (", format(percent_var2, digits = 2), "%)"), 
+       color = "Bacterioplankton inoculum",
+       shape = "Control") +  # Change MP treatment to Control
+  theme_pubr()
+
+```
+
+Rarefraction to 2000
+```{r}
+ps_original=readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq.rds")
+
+#Figure 7A
+
+#Rarefy
+set_depth <- 2000
+merged_phyloseq_rarified <- rarefy_even_depth(ps_original, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(merged_phyloseq_rarified))
+
+#Post-exposure control (no MPs) daphnia vs bacterioplankton (no MPs)
+
+subset_phyloseq <- subset_samples(merged_phyloseq_rarified, 
+                                  (Category == "Daphnia: Post-exposure" & Plastic == "C" & Pond!="H2O") |
+                                    (Category == "Bacterioplankton: Post-exposure" & Plastic == "C" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # 0.1702116
+
+# Run PERMANOVA using adonis
+permanova_result <- adonis2(bray~ Category, data = meta, method = "bray")
+# View the results
+print(permanova_result) # 0.014 *
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Category, data = meta, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)  
+Model     1   0.6052 0.08397 2.1084  0.014 *
+Residual 23   6.6023 0.91603                
+Total    24   7.2075 1.00000                
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+#Check assumptions of constant variance
+dispersion_test <- betadisper(bray, meta$Category)
+plot(dispersion_test)
+permutest(dispersion_test,permutations = 999) #0.653
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.00317 0.0031668 0.2211    999  0.653
+Residuals 23 0.32942 0.0143227         
+"""
+
+#Richness
+tab <-microbiome::alpha(subset_phyloseq, index = "all")
+tab$Category = meta$Category
+
+print(t.test(chao1~Category, data=tab)) # t = 1.2433, df = 9.7797, p-value = 0.2427
+print(t.test(diversity_shannon~Category, data=tab)) # t = 2.2732, df = 18.588, p-value = 0.03508
+print(t.test(evenness_pielou~Category, data=tab)) # t = 2.0293, df = 18.725, p-value = 0.05688
+
+#Figure 7C
+ps_bac <- subset_samples(ps_original, Type=='Bacterioplankton')
+
+#Rarefy
+set_depth <- 2000
+bac_phyloseq_rarified <- rarefy_even_depth(ps_bac, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(bac_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(bac_phyloseq_rarified, 
+                                  (Category == "Bacterioplankton: Post-exposure" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.1680448
+
+# Assuming 'meta' is your dataframe
+meta$Daphnia_present <- ifelse(meta$Clone == "C", "Yes", "No")
+sample_data(subset_phyloseq) = meta
+
+permanova_result <- adonis2(bray~ Daphnia_present, data = meta, method = "bray")
+print(permanova_result) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Daphnia_present, data = meta, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.1532 0.04916 4.2396  0.001 ***
+Residual 82  22.3050 0.95084                  
+Total    83  23.4582 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+dispersion_test <- betadisper(bray, meta$Daphnia_present)
+permutest(dispersion_test,permutations = 999) # 0.098 .
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq     F N.Perm Pr(>F)
+Groups     1 0.03945 0.039453 2.893    999  0.113
+Residuals 82 1.11825 0.013637            
+ 
+"""
+
+#Figure 7D
+ps_dap <- subset_samples(ps_original, Type=='Daphnia')
+
+#Rarefy
+set_depth <- 2000
+dap_phyloseq_rarified <- rarefy_even_depth(ps_dap, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(dap_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(dap_phyloseq_rarified, Category== "Daphnia: Post-exposure" | Category== "Juvenile: Post-exposure")
+meta_data <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") 
+nmds_result <- metaMDS(bray, trymax = 100,k=2) #0.2311677 - stress value is too high 
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Calculate total variance to normalize eigenvalues
+total_variance <- sum(PCoA_result$CA$eig)
+
+# Calculate percentage of variance explained by the first two axes
+percent_var1 <- PCoA_result$CA$eig[1] / total_variance * 100
+percent_var2 <- PCoA_result$CA$eig[2] / total_variance * 100
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+p <- plot_ordination(subset_phyloseq, PCoA_result, color = "Pond", shape = "Plastic") +  
+  geom_point(size = 3) +  
+  scale_shape_manual(values = c(4, 16, 17, 15)) +  # Distinguishable shapes, 19 for NA
+  scale_colour_manual(values = c("red", "blue"), na.value = "grey50") +  
+  labs(title = "", 
+       x = paste0("PCoA1 (", format(percent_var1, digits = 2), "%)"), 
+       y = paste0("PCoA2 (", format(percent_var2, digits = 2), "%)"), 
+       color = "Bacterioplankton inoculum",
+       shape = "Control") +  # Change MP treatment to Control
+  theme_pubr()
+
+```
+
+Rarefraction to 2500
+```{r}
+ps_original=readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq.rds")
+
+#Figure 7A
+
+#Rarefy
+set_depth <- 2500
+merged_phyloseq_rarified <- rarefy_even_depth(ps_original, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(merged_phyloseq_rarified))
+
+#Post-exposure control (no MPs) daphnia vs bacterioplankton (no MPs)
+
+subset_phyloseq <- subset_samples(merged_phyloseq_rarified, 
+                                  (Category == "Daphnia: Post-exposure" & Plastic == "C" & Pond!="H2O") |
+                                    (Category == "Bacterioplankton: Post-exposure" & Plastic == "C" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # 0.165915
+
+# Run PERMANOVA using adonis
+permanova_result <- adonis2(bray~ Category, data = meta, method = "bray")
+# View the results
+print(permanova_result) # 0.014 *
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Category, data = meta, method = "bray")
+         Df SumOfSqs     R2      F Pr(>F)   
+Model     1   0.6154 0.0902 2.1811  0.009 **
+Residual 22   6.2070 0.9098                 
+Total    23   6.8223 1.0000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+#Check assumptions of constant variance
+dispersion_test <- betadisper(bray, meta$Category)
+plot(dispersion_test)
+permutest(dispersion_test,permutations = 999) #0.609
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.00464 0.0046386 0.2895    999  0.609
+Residuals 22 0.35245 0.0160206         
+"""
+
+#Richness
+tab <-microbiome::alpha(subset_phyloseq, index = "all")
+tab$Category = meta$Category
+
+print(t.test(chao1~Category, data=tab)) # t = 1.2594, df = 10.875, p-value = 0.2342
+print(t.test(diversity_shannon~Category, data=tab)) # t = 2.1077, df = 18.593, p-value = 0.04887
+print(t.test(evenness_pielou~Category, data=tab)) # t = 1.8783, df = 18.696, p-value = 0.07602
+
+#Figure 7C
+ps_bac <- subset_samples(ps_original, Type=='Bacterioplankton')
+
+#Rarefy
+set_depth <- 2500
+bac_phyloseq_rarified <- rarefy_even_depth(ps_bac, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(bac_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(bac_phyloseq_rarified, 
+                                  (Category == "Bacterioplankton: Post-exposure" & Pond!="H2O"))
+
+meta = data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.1776359
+
+# Assuming 'meta' is your dataframe
+meta$Daphnia_present <- ifelse(meta$Clone == "C", "Yes", "No")
+sample_data(subset_phyloseq) = meta
+
+permanova_result <- adonis2(bray~ Daphnia_present, data = meta, method = "bray")
+print(permanova_result) #0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Daphnia_present, data = meta, method = "bray")
+         Df SumOfSqs      R2     F Pr(>F)    
+Model     1   1.1566 0.05178 4.314  0.001 ***
+Residual 79  21.1798 0.94822                 
+Total    80  22.3364 1.00000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"""
+
+dispersion_test <- betadisper(bray, meta$Daphnia_present)
+permutest(dispersion_test,permutations = 999) # 0.078 .
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq     F N.Perm Pr(>F)  
+Groups     1 0.05116 0.051162 3.287    999  0.078 .
+Residuals 79 1.22964 0.015565                      
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1       
+ 
+"""
+
+#Figure 7D
+ps_dap <- subset_samples(ps_original, Type=='Daphnia')
+
+#Rarefy
+set_depth <- 2500
+dap_phyloseq_rarified <- rarefy_even_depth(ps_dap, sample.size = set_depth, rngseed = 1, replace = FALSE)
+meta = data.frame(sample_data(dap_phyloseq_rarified))
+
+subset_phyloseq <- subset_samples(dap_phyloseq_rarified, Category== "Daphnia: Post-exposure" | Category== "Juvenile: Post-exposure")
+meta_data <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") 
+nmds_result <- metaMDS(bray, trymax = 100,k=2) #0.2259008 - stress value is too high 
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Calculate total variance to normalize eigenvalues
+total_variance <- sum(PCoA_result$CA$eig)
+
+# Calculate percentage of variance explained by the first two axes
+percent_var1 <- PCoA_result$CA$eig[1] / total_variance * 100
+percent_var2 <- PCoA_result$CA$eig[2] / total_variance * 100
+
+meta = data.frame(sample_data(subset_phyloseq))
+
+p <- plot_ordination(subset_phyloseq, PCoA_result, color = "Pond", shape = "Plastic") +  
+  geom_point(size = 3) +  
+  scale_shape_manual(values = c(4, 16, 17, 15)) +  # Distinguishable shapes, 19 for NA
+  scale_colour_manual(values = c("red", "blue"), na.value = "grey50") +  
+  labs(title = "", 
+       x = paste0("PCoA1 (", format(percent_var1, digits = 2), "%)"), 
+       y = paste0("PCoA2 (", format(percent_var2, digits = 2), "%)"), 
+       color = "Bacterioplankton inoculum",
+       shape = "Control") +  # Change MP treatment to Control
+  theme_pubr()
+
+```
+
+Reviewer 3:
+
+Number of ASVs and number of reads in Field samples:
+
+```{r}
+library(vegan)
+library(phyloseq)
+library(reshape2)
+library(ggplot2)
+library(dplyr)
+
+#Number of ASVs per sample
+ps_raw = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Scripts/files/objects/ps_original")
+
+# Extract the ASV table from ps_raw and transpose it
+asv_table <- data.frame(otu_table(ps_raw))
+
+#Number of ASV
+length(rownames(asv_table)) #8237
+
+# Sum the number of reads per sample
+reads_per_sample <- colSums(asv_table)
+
+# Convert the reads to a data frame
+reads_df <- data.frame(Sample = names(reads_per_sample), Reads = reads_per_sample)
+
+# Remove the "N" prefix and convert to numeric for proper sorting
+reads_df$Sample_numeric <- as.numeric(gsub("N", "", reads_df$Sample))
+
+# Sort by the numeric sample name
+reads_df <- reads_df %>%
+  arrange(Sample_numeric)
+
+# Remove the auxiliary numeric column
+reads_df <- reads_df %>% select(Sample, Reads)
+
+# Save the sorted data to a CSV file
+write.csv(reads_df, "/Users/u0145079/sorted_reads_per_sample.csv", row.names = FALSE)
+
+#Richness indices (rarefied set)
+ps_rarefied = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Field/Miseq/output/dada2/new/ps_rarefied")
+ps_rarefied <- prune_samples(sample_data(ps_rarefied)$Category != "WWTP", ps_rarefied) #remove samples from WWTP
+library(microbiome)
+tab <-microbiome::alpha(ps_rarefied, index = "all")
+
+write.csv(tab,'/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Field/Miseq/output/dada2/new/richness-table.csv')
+
+###Exposure
+ps_raw = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq.rds")
+
+# Extract the ASV table from ps_raw and transpose it
+asv_table <- data.frame(otu_table(ps_raw))
+
+#Number of ASV
+length(rownames(asv_table))
+
+# Sum the number of reads per sample
+reads_per_sample <- colSums(asv_table)
+
+# Convert the reads to a data frame
+reads_df <- data.frame(Sample = names(reads_per_sample), Reads = reads_per_sample)
+
+# Remove the "N" prefix and convert to numeric for proper sorting
+reads_df$Sample_numeric <- as.numeric(gsub("NA", "", reads_df$Sample))
+
+# Sort by the numeric sample name
+reads_df <- reads_df %>%
+  arrange(Sample_numeric)
+
+# Remove the auxiliary numeric column
+reads_df <- reads_df %>% select(Sample, Reads)
+
+# Save the sorted data to a CSV file
+write.csv(reads_df, "/Users/u0145079/sorted_reads_per_sample.csv", row.names = FALSE)
+
+#Richness indices (rarefied set)
+ps_rarefied = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq_rarified.rds")
+meta= data.frame(sample_data(ps_rarefied))
+library(microbiome)
+tab <-microbiome::alpha(ps_rarefied, index = "all")
+
+write.csv(tab,'/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/richness-table.csv')
+```
+
+Number of ASVs and number of reads in Exposure samples:
+
+```{r}
+###Exposure
+ps_raw = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq.rds")
+
+# Extract the ASV table from ps_raw and transpose it
+asv_table <- data.frame(otu_table(ps_raw))
+
+#Number of ASV
+length(rownames(asv_table))
+
+# Sum the number of reads per sample
+reads_per_sample <- colSums(asv_table)
+
+# Convert the reads to a data frame
+reads_df <- data.frame(Sample = names(reads_per_sample), Reads = reads_per_sample)
+
+# Remove the "N" prefix and convert to numeric for proper sorting
+reads_df$Sample_numeric <- as.numeric(gsub("NA", "", reads_df$Sample))
+
+# Sort by the numeric sample name
+reads_df <- reads_df %>%
+  arrange(Sample_numeric)
+
+# Remove the auxiliary numeric column
+reads_df <- reads_df %>% select(Sample, Reads)
+
+# Save the sorted data to a CSV file
+write.csv(reads_df, "/Users/u0145079/sorted_reads_per_sample.csv", row.names = FALSE)
+
+#Richness indices (rarefied set)
+ps_rarefied = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq_rarified.rds")
+meta= data.frame(sample_data(ps_rarefied))
+library(microbiome)
+tab <-microbiome::alpha(ps_rarefied, index = "all")
+
+write.csv(tab,'/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/richness-table.csv')
+```
+
+Make taxa bar-plots-FIELD:
+
+```{r}
+# Load required packages
+library(phyloseq)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(RColorBrewer)
+
+ps_rarefied = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Data_submission/Scripts_clean/Field-sampling/16S-rRNA-community-analysis/ps-objects/ps_rarefied.rds")
+
+# Remove samples where Category == "WWTP"
+ps_filtered <- subset_samples(ps_rarefied, Category != "WWTP")
+
+# Update the 'Category' variable to replace "Artificial pond" with "Urban ponds"
+sample_data(ps_filtered)$Category <- as.character(sample_data(ps_filtered)$Category)
+sample_data(ps_filtered)$Category[sample_data(ps_filtered)$Category == "Artifical pond"] <- "Urban ponds"
+sample_data(ps_filtered)$Category[sample_data(ps_filtered)$Category == "Regular pond"] <- "Natural pond"
+sample_data(ps_filtered)$Location[sample_data(ps_filtered)$Location == "Meer van Rotselaar"] <- "MVR"
+sample_data(ps_filtered)$Location[sample_data(ps_filtered)$Location == "MVR "] <- "MVR"
+sample_data(ps_filtered)$Category <- factor(sample_data(ps_filtered)$Category)
+```
+
+```{r}
+# Define the function
+# Load required packages
+library(phyloseq)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# Define the updated function
+plot_top_taxa <- function(physeq_obj, tax_level = "Phylum", top_n = 10, Facet_by = "Type", x_axis = "Location", Extra_variable = "Category") {
+  # Check if the specified taxonomic level exists in the taxonomy table
+  if (!(tax_level %in% rank_names(physeq_obj))) {
+    stop(paste("Taxonomic level", tax_level, "not found in the phyloseq object."))
+  }
+  
+  # Replace NA in taxonomic ranks with "Unknown"
+  tax_table(physeq_obj) <- tax_table(physeq_obj) %>%
+    as.data.frame() %>%
+    mutate(across(everything(), ~ ifelse(is.na(.), "Unknown", .))) %>%
+    as.matrix() %>%
+    tax_table()
+  
+  # Remove samples with zero total counts
+  physeq_obj <- prune_samples(sample_sums(physeq_obj) > 0, physeq_obj)
+
+  # Remove taxa with zero total counts
+  physeq_obj <- prune_taxa(taxa_sums(physeq_obj) > 0, physeq_obj)
+  
+  # Transform counts to relative abundances
+  physeq_rel <- transform_sample_counts(physeq_obj, function(x) x / sum(x))
+  
+  # Melt the phyloseq object to long format for ggplot2
+  physeq_melt <- psmelt(physeq_rel)
+  
+  # Aggregate data at the specified taxonomic level and sum abundances per sample
+  physeq_agg <- physeq_melt %>%
+    group_by(Sample, !!sym(x_axis), !!sym(Extra_variable), !!sym(Facet_by), !!sym(tax_level)) %>%
+    summarise(Abundance = sum(Abundance), .groups = 'drop')
+  
+  # Determine the top N taxa per x_axis
+  top_taxa_per_x_axis <- physeq_agg %>%
+    group_by(!!sym(x_axis), !!sym(tax_level)) %>%
+    summarise(TotalAbundance = sum(Abundance), .groups = 'drop') %>%
+    arrange(!!sym(x_axis), desc(TotalAbundance)) %>%
+    group_by(!!sym(x_axis)) %>%
+    slice_head(n = top_n) %>%
+    ungroup()
+  
+  # Label taxa as 'Other' if not in top N per x_axis
+  physeq_agg <- physeq_agg %>%
+    left_join(top_taxa_per_x_axis, by = c(x_axis, tax_level), suffix = c("", ".y")) %>%
+    mutate(!!sym(tax_level) := ifelse(is.na(TotalAbundance), "Other", .data[[tax_level]])) %>%
+    select(-TotalAbundance)
+  
+  # Recalculate abundances with 'Other' category included
+  physeq_agg <- physeq_agg %>%
+    group_by(Sample, !!sym(x_axis), !!sym(Extra_variable), !!sym(Facet_by), !!sym(tax_level)) %>%
+    summarise(Abundance = sum(Abundance), .groups = 'drop')
+  
+  # Prepare data for plotting
+  plot_data <- physeq_agg %>%
+    group_by(!!sym(x_axis), !!sym(Extra_variable), !!sym(Facet_by), !!sym(tax_level)) %>%
+    summarise(Abundance = mean(Abundance), .groups = 'drop')
+  
+  library(pals)
+  
+  # Generate the color palette
+  unique_taxa <- unique(plot_data[[tax_level]])
+  num_colors <- length(unique_taxa)
+  palette_colors <- pals::alphabet(num_colors)
+  names(palette_colors) <- unique_taxa
+  
+  # Create the plot
+  p <- ggplot(plot_data, aes_string(x = x_axis, y = "Abundance", fill = tax_level)) +
+    geom_bar(stat = "identity", position = "stack") +
+    facet_wrap(as.formula(paste("~", Facet_by)), scales = "free_x") +
+    labs(title = paste("Top", top_n, "Abundant Taxa per", x_axis, "at", tax_level, "Level"),
+         x = x_axis,
+         y = "Relative Abundance") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    scale_fill_manual(values = palette_colors)
+  
+  # Add symbols above each bar to represent 'Extra_variable'
+  # Create a data frame for the symbols
+  symbol_data <- plot_data %>%
+    group_by(!!sym(x_axis), !!sym(Extra_variable), !!sym(Facet_by)) %>%
+    summarise(y = 1.02, .groups = 'drop')  # Position slightly above the bars
+  
+  # Ensure 'Extra_variable' is a factor
+  symbol_data[[Extra_variable]] <- factor(symbol_data[[Extra_variable]])
+  
+  # Add symbols to the plot with adjusted legends
+  p <- p + geom_point(data = symbol_data,
+                      aes_string(x = x_axis, y = "y", shape = Extra_variable),
+                      size = 4,
+                      inherit.aes = FALSE,
+                      show.legend = TRUE) +
+    guides(
+      shape = guide_legend(title = Extra_variable),
+      fill = guide_legend(title = tax_level,
+                          override.aes = list(shape = NA))  # Remove shape from legend
+    ) +
+    ylim(0, 1.05)  # Adjust y-axis to accommodate symbols
+  
+  # Return the plot
+  return(p)
+}
+
+#Plot Phylum
+p1=plot_top_taxa(ps_filtered,'Class')
+#Plot Order
+p2=plot_top_taxa(ps_filtered,'Order')
+p3=plot_top_taxa(ps_filtered,'Family')
+
+write.csv(field.order,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Taxa-abundances/field.order.csv")
+write.csv(field.class,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Taxa-abundances/field.class.csv")
+
+```
+
+Plot exposure
+```{r}
+# Define the updated function
+plot_taxa_by_pond_plastic <- function(physeq_obj, tax_level = "Phylum", top_n = 10) {
+  # Check if the specified taxonomic level exists
+  if (!(tax_level %in% rank_names(physeq_obj))) {
+    stop(paste("Taxonomic level", tax_level, "not found in the phyloseq object."))
+  }
+  
+  # Replace NA in taxonomic ranks with "Unknown"
+  tax_table(physeq_obj) <- tax_table(physeq_obj) %>%
+    as.data.frame() %>%
+    mutate(across(everything(), ~ ifelse(is.na(.), "Unknown", .))) %>%
+    as.matrix() %>%
+    tax_table()
+  
+  # Remove samples with zero total counts
+  physeq_obj <- prune_samples(sample_sums(physeq_obj) > 0, physeq_obj)
+  
+  # Remove taxa with zero total counts
+  physeq_obj <- prune_taxa(taxa_sums(physeq_obj) > 0, physeq_obj)
+  
+  # Create 'PondxPlastic' in sample data
+  sample_data(physeq_obj)$PondxPlastic <- paste0(sample_data(physeq_obj)$Pond, "_", sample_data(physeq_obj)$Plastic)
+  sample_data(physeq_obj)$PondxPlastic <- factor(sample_data(physeq_obj)$PondxPlastic)
+  
+  # Transform counts to relative abundances
+  physeq_rel <- transform_sample_counts(physeq_obj, function(x) x / sum(x))
+  
+  # Melt the phyloseq object to long format
+  physeq_melt <- psmelt(physeq_rel)
+  
+  # Remove rows with NA in grouping variables
+  physeq_melt <- physeq_melt %>%
+    filter(!is.na(PondxPlastic), !is.na(Type), !is.na(Abundance))
+  
+  # Aggregate data at the specified taxonomic level
+  physeq_agg <- physeq_melt %>%
+    group_by(PondxPlastic, Type, Sample, !!sym(tax_level)) %>%
+    summarise(Abundance = sum(Abundance), .groups = 'drop')
+  
+  # Determine the top N taxa per PondxPlastic and Type
+  top_taxa_per_group <- physeq_agg %>%
+    group_by(PondxPlastic, Type, !!sym(tax_level)) %>%
+    summarise(TotalAbundance = sum(Abundance), .groups = 'drop') %>%
+    arrange(PondxPlastic, Type, desc(TotalAbundance)) %>%
+    group_by(PondxPlastic, Type) %>%
+    slice_head(n = top_n) %>%
+    ungroup()
+  
+  # Label taxa as 'Other' if not in top N per group
+  physeq_agg <- physeq_agg %>%
+    left_join(top_taxa_per_group, by = c("PondxPlastic", "Type", tax_level), suffix = c("", ".y")) %>%
+    mutate(!!sym(tax_level) := ifelse(is.na(TotalAbundance), "Other", .data[[tax_level]])) %>%
+    select(-TotalAbundance)
+  
+  # Recalculate abundances with 'Other' category included
+  physeq_agg <- physeq_agg %>%
+    group_by(PondxPlastic, Type, Sample, !!sym(tax_level)) %>%
+    summarise(Abundance = sum(Abundance), .groups = 'drop')
+  
+  # Sum abundances per group for normalization
+  plot_data <- physeq_agg %>%
+    group_by(PondxPlastic, Type, !!sym(tax_level)) %>%
+    summarise(Abundance = sum(Abundance), .groups = 'drop')
+  
+  # Normalize Abundance within each PondxPlastic and Type to sum to 1
+  plot_data <- plot_data %>%
+    group_by(PondxPlastic, Type) %>%
+    mutate(Abundance = Abundance / sum(Abundance)) %>%
+    ungroup()
+  
+  # Remove rows with invalid Abundance values
+  plot_data <- plot_data %>%
+    filter(!is.na(Abundance), !is.nan(Abundance), is.finite(Abundance), Abundance >= 0)
+  library(pals)
+  
+  # Generate the color palette
+  unique_taxa <- unique(plot_data[[tax_level]])
+  num_colors <- length(unique_taxa)
+  palette_colors <- pals::alphabet(num_colors)
+  names(palette_colors) <- unique_taxa
+
+  # Create the plot
+  p <- ggplot(plot_data, aes(x = PondxPlastic, y = Abundance, fill = .data[[tax_level]])) +
+    geom_bar(stat = "identity", position = "stack") +
+    facet_wrap(~ Type, scales = "free_x") +
+    labs(title = paste("Top", top_n, "Abundant Taxa per PondxPlastic at", tax_level, "Level"),
+         x = "Pond and Plastic Combination",
+         y = "Relative Abundance") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    scale_fill_manual(values = palette_colors) +
+    ylim(0, 1.05)  # Since abundances sum to 1, set y-axis limit to slightly above 1
+
+  # Return the plot
+  return(p)
+}
+
+```
+
+```{r}
+ps_rarefied = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq_rarified_clean.rds")
+ps_filtered <- subset_samples(
+  ps_rarefied,
+  !(Pond == "H2O" | Category == "Daphnia: Post-Long-exposure (selected survivals)" | Plastic == "NA")
+)
+
+sample_data(ps_filtered)$Plastic[sample_data(ps_filtered)$Plastic == " Nylon"] <- "Nylon"
+
+#Plot Class
+p1 <- plot_taxa_by_pond_plastic(
+  physeq_obj = ps_filtered,
+  tax_level = 'Class',
+  top_n = 10
+)
+#Plot Order
+p2 <- plot_taxa_by_pond_plastic(
+  physeq_obj = ps_filtered,
+  tax_level = 'Order',
+  top_n = 10
+)
+
+exposure.class=p1$data
+exposure.order=p2$data
+
+write.csv(exposure.class,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Taxa-abundances/exposure.class.csv")
+write.csv(exposure.order,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Taxa-abundances/exposure.order.csv")
+
+```
+
+Reviewer 3:
+**Lines 369-370:
+Is there no similar differences between Daphnia and surrounding water in the no MP conditions at the end of the experiment? This would determine the extent to which you can interpret how much exchange between pre-experiment Daphnia communities and water is related to MP in the water. In the absence of some measure of variation between how different Daphnia are to their surrounding water in MP+ and MP- conditions this feels over interpreted.
+
+Check if there is a difference between Daphnia-Control and surrounding bacterioplankton. If yes, remove the claim, If no, mantain it.
+
+```{r}
+rare_ps = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Data_submission/Scripts_clean/MP-in-vitro-exposure/16S-rRNA-community-analysis/ps-objects/merged_phyloseq_rarified_clean.rds")
+
+#For BP:
+ps_noMPS_BP <- subset_samples(
+  rare_ps,Plastic=="C" & Pond=="BP")
+
+meta=data.frame(sample_data(ps_noMPS_BP))
+bray <- vegdist(data.frame(t(otu_table(ps_noMPS_BP))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+
+# Run PERMANOVA using adonis
+permanova_result <- adonis2(bray~Type, data = meta, method = "bray")
+# View the results
+print(permanova_result) # 0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Type, data = meta, method = "bray")
+         Df SumOfSqs     R2      F Pr(>F)    
+Model     1   0.8263 0.1609 3.6433  0.001 ***
+Residual 19   4.3095 0.8391                  
+Total    20   5.1358 1.0000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"""
+
+#Check assumptions of constant variance
+dispersion_test <- betadisper(bray, meta$Type)
+plot(dispersion_test)
+permutest(dispersion_test,permutations = 999) #0.15
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df   Sum Sq  Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.023646 0.023646 2.3191    999   0.15
+Residuals 19 0.193732 0.010196  
+"""
+
+#For DG:
+ps_noMPS_DG <- subset_samples(
+  rare_ps,Plastic=="C" & Pond=="DG")
+
+meta=data.frame(sample_data(ps_noMPS_DG))
+bray <- vegdist(data.frame(t(otu_table(ps_noMPS_DG))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+
+# Run PERMANOVA using adonis
+permanova_result <- adonis2(bray~Type, data = meta, method = "bray")
+# View the results
+print(permanova_result) # 0.001 ***
+
+"""
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Type, data = meta, method = "bray")
+         Df SumOfSqs      R2     F Pr(>F)    
+Model     1   1.3264 0.26831 4.767  0.001 ***
+Residual 13   3.6172 0.73169                 
+Total    14   4.9436 1.00000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1  
+"""
+#Check assumptions of constant variance
+dispersion_test <- betadisper(bray, meta$Type)
+plot(dispersion_test)
+permutest(dispersion_test,permutations = 999) #0.15
+
+"""
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.00519 0.005195 0.1632    999  0.703
+Residuals 13 0.41382 0.031832    
+"""
+
+
+
+
+
+```
+Reviewer 3:
+Relatedly, it would be helpful to have access to what the background community is when interpreting results. In the absence of axenic animals where the inputs are completely controlled for gnotobiotic manipulation it is useful to be able to trace where taxa are coming from. Maybe some representation of all the taxa in the dataset and whether or not they were observed in the laboratory background for Daphnia magna or in the lake water inocula would be helpful even just for knowing to what extent the introduction of lake-derived bacterioplankton was successful in establishing as opposed to leading to changes in the composition of the pre-existing community. There is some mention of tracing the origin of taxa in the rest of the network analysis results, but we are only seeing three taxa described and that is not enough to get a sense of what community assembly processes may be happening. Of course, the authors report that the community composition differences are mostly driven by inoculum source, but that alone still leaves a reader with an incomplete idea of how the introduced community is establishing and/or how the pre-existing community is responding. 
+
+Goal:
+
+1.	Do not remove the taxa based on prevalence (exclude env-samples)
+2.	Separate post-exposure control from MP exposed (x2)
+3.	Separate DG vs BP (x2)
+
+```{r}
+library(phyloseq)
+library(vegan)
+```
+
+Load ps-object and metadata:
+```{r}
+#Load phyloseq (rarefied)
+ps_mic = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/phyloseq/decontam/ps_rare_daphnia_decontam_clean.rds")
+
+#load meta
+meta = read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/decontaminated_set/merged_meta.csv",row.names = 1)
+```
+
+```{r}
+# Extract common sample IDs
+common_sample_ids <- intersect(sample_names(ps_mic), row.names(meta))
+# Subset metadata to include only common sample IDs
+filtered_meta <- meta[common_sample_ids, ]
+# Assign filtered metadata as sample_data for ps_bac
+sample_data(ps_mic) <- filtered_meta
+filtered_meta <- data.frame(sample_data(ps_mic))
+```
+
+Load the PS again (exclude samples sampled from the ponds) - only clone controls and exposed Daphnia are considered:
+```{r}
+BP_ps_control <- subset_samples(ps_mic, Pond == "BP" | Exposure_time == "Pre" | Plastic_presence == "No")
+BP_ps_MP <- subset_samples(ps_mic, Pond == "BP" | Exposure_time == "Pre" | Exposure_time == "Pre"| Plastic_presence == "Yes")
+DG_ps_control <- subset_samples(ps_mic, Pond == "DG" | Exposure_time == "Pre" | Plastic_presence == "No")
+DG_ps_MP <- subset_samples(ps_mic, Pond == "DG" | Exposure_time == "Pre" | Plastic_presence == "Yes")
+```
+
+Extract tables - controls
+```{r}
+otus_BP_control = data.frame(otu_table(BP_ps_control))
+otus_DG_control = data.frame(otu_table(DG_ps_control))
+
+taxa_BP_control = data.frame(tax_table(BP_ps_control))
+taxa_DG_control = data.frame(tax_table(DG_ps_control))
+
+meta_BP_control=data.frame(sample_data(BP_ps_control))
+meta_DG_control=data.frame(sample_data(DG_ps_control))
+```
+
+Extract tables - MPs
+```{r}
+otus_BP_MPs = data.frame(otu_table(BP_ps_MP))
+otus_DG_MPs = data.frame(otu_table(DG_ps_MP))
+
+taxa_BP_MPs = data.frame(tax_table(BP_ps_MP))
+taxa_DG_MPs = data.frame(tax_table(DG_ps_MP))
+
+meta_BP_MPs=data.frame(sample_data(BP_ps_MP))
+meta_DG_MPs=data.frame(sample_data(DG_ps_MP))
+```
+
+Define function
+```{r}
+annotate_taxa <- function(otus, meta, exposure_col = "Exposure_time") {
+  # Ensure that the OTU table has row names
+  if (is.null(rownames(otus))) {
+    stop("The 'otus' data frame must have row names representing OTUs.")
+  }
+  
+  # Ensure that the metadata has row names corresponding to sample names
+  if (is.null(rownames(meta))) {
+    stop("The 'meta' data frame must have row names corresponding to sample names.")
+  }
+  
+  # Initialize a character vector to store annotations
+  annotated_otu_ids <- character(nrow(otus))
+  
+  # Loop through each OTU
+  for (i in 1:nrow(otus)) {
+    # Identify samples where the OTU is present (count > 0)
+    present_samples <- colnames(otus)[which(otus[i, ] > 0)]
+    
+    # If no samples have the OTU, assign "None" or a suitable label
+    if (length(present_samples) == 0) {
+      annotated_otu_ids[i] <- "None"
+      next
+    }
+    
+    # Retrieve the exposure conditions for these samples
+    ponds <- unique(meta[[exposure_col]][rownames(meta) %in% present_samples])
+    
+    # Assign annotation based on exposure conditions
+    annotation <- ifelse(all(c("Post", "Pre") %in% ponds), "Post+Pre",
+                         ifelse("Post" %in% ponds, "Post",
+                                ifelse("Pre" %in% ponds, "Pre", 
+                                       ifelse("Pre-Env" %in% ponds, "Pre-Env", "All"))))
+    
+    # Store the annotation
+    annotated_otu_ids[i] <- annotation
+  }
+  
+  # Optionally, you can return a named vector for clarity
+  names(annotated_otu_ids) <- rownames(otus)
+  
+  return(annotated_otu_ids)
+}
+```
+
+Annotate taxa with their source
+
+#BP
+```{r}
+t=annotate_taxa(otus_BP_control,meta_BP_control)
+taxa_BP_control$Source=t
+#write.csv(taxa_BP_control,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_BP_control_source.csv")
+
+t=annotate_taxa(otus_BP_MPs,meta_BP_MPs)
+taxa_BP_MPs$Source=t
+write.csv(taxa_BP_MPs,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_BP_MPs_source.csv")
+
+```
+
+
+#DG
+```{r}
+t=annotate_taxa(otus_DG_control,meta_DG_control)
+taxa_DG_control$Source=t
+write.csv(taxa_DG_control,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_DG_control_source.csv")
+
+
+t=annotate_taxa(otus_DG_MPs,meta_DG_MPs)
+taxa_DG_MPs$Source=t
+write.csv(taxa_DG_MPs,"/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_DG_MPs_source.csv")
+
+```
+Make Vann diagrams
+
+#BP
+
+```{r}
+# Load the VennDiagram package
+library(VennDiagram)
+library(grid)
+
+###Control
+taxa_BP_control=read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_BP_control_source.csv",row.names=1)
+
+# Identify taxa in each group
+pre_taxa <- rownames(taxa_BP_control)[taxa_BP_control$Source == "Pre" | taxa_BP_control$Source == "Post+Pre"]
+post_taxa <- rownames(taxa_BP_control)[taxa_BP_control$Source == "Post" | taxa_BP_control$Source == "Post+Pre"]
+pre_post_taxa <- rownames(taxa_BP_control)[taxa_BP_control$Source == "Post+Pre"]
+
+# Create the Venn diagram
+BP_CONTROL <- venn.diagram(
+  x = list(
+    Pre = pre_taxa,
+    Post = post_taxa,
+    "Pre+Post" = pre_post_taxa
+  ),
+  category.names = c("Pre", "Post", "Pre+Post"),
+  fill = c("red", "green", "blue"),
+  alpha = 0.5,
+  cex = 2,
+  cat.cex = 2,
+  filename = NULL  # Keep it in R session instead of saving to file
+)
+
+# Remove zero labels from the Venn diagram
+for (i in seq_along(venn.plot)) {
+  if (!is.null(venn.plot[[i]]$label) && venn.plot[[i]]$label %in% c("0")) {
+    venn.plot[[i]]$label <- ""
+  }
+}
+
+
+####MP
+taxa_BP_MPs=read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_BP_MPs_source.csv",row.names=1)
+
+# Identify taxa in each group
+pre_taxa <- rownames(taxa_BP_MPs)[taxa_BP_MPs$Source == "Pre" | taxa_BP_MPs$Source == "Post+Pre"]
+post_taxa <- rownames(taxa_BP_MPs)[taxa_BP_MPs$Source == "Post" | taxa_BP_MPs$Source == "Post+Pre"]
+pre_post_taxa <- rownames(taxa_BP_MPs)[taxa_BP_MPs$Source == "Post+Pre"]
+
+# Create the Venn diagram
+BP_MP <- venn.diagram(
+  x = list(
+    Pre = pre_taxa,
+    Post = post_taxa,
+    "Pre+Post" = pre_post_taxa
+  ),
+  category.names = c("Pre", "Post", "Pre+Post"),
+  fill = c("red", "green", "blue"),
+  alpha = 0.5,
+  cex = 2,
+  cat.cex = 2,
+  filename = NULL  # Keep it in R session instead of saving to file
+)
+
+# Remove zero labels from the Venn diagram
+for (i in seq_along(venn.plot)) {
+  if (!is.null(venn.plot[[i]]$label) && venn.plot[[i]]$label %in% c("0")) {
+    venn.plot[[i]]$label <- ""
+  }
+}
+
+```
+
+DG
+```{r}
+###Control
+taxa_DG_control=read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_DG_control_source.csv",row.names=1)
+
+# Identify taxa in each group
+pre_taxa <- rownames(taxa_DG_control)[taxa_DG_control$Source == "Pre" | taxa_DG_control$Source == "Post+Pre"]
+post_taxa <- rownames(taxa_DG_control)[taxa_DG_control$Source == "Post" | taxa_DG_control$Source == "Post+Pre"]
+pre_post_taxa <- rownames(taxa_DG_control)[taxa_DG_control$Source == "Post+Pre"]
+
+# Create the Venn diagram
+DG_CONTROL <- venn.diagram(
+  x = list(
+    Pre = pre_taxa,
+    Post = post_taxa,
+    "Pre+Post" = pre_post_taxa
+  ),
+  category.names = c("Pre", "Post", "Pre+Post"),
+  fill = c("red", "green", "blue"),
+  alpha = 0.5,
+  cex = 2,
+  cat.cex = 2,
+  filename = NULL  # Keep it in R session instead of saving to file
+)
+
+# Remove zero labels from the Venn diagram
+for (i in seq_along(venn.plot)) {
+  if (!is.null(venn.plot[[i]]$label) && venn.plot[[i]]$label %in% c("0")) {
+    venn.plot[[i]]$label <- ""
+  }
+}
+
+
+####MP
+taxa_DG_MPs=read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/Network/taxa_DG_MPs_source.csv",row.names=1)
+
+# Identify taxa in each group
+pre_taxa <- rownames(taxa_DG_MPs)[taxa_DG_MPs$Source == "Pre" | taxa_DG_MPs$Source == "Post+Pre"]
+post_taxa <- rownames(taxa_DG_MPs)[taxa_DG_MPs$Source == "Post" | taxa_DG_MPs$Source == "Post+Pre"]
+pre_post_taxa <- rownames(taxa_DG_MPs)[taxa_DG_MPs$Source == "Post+Pre"]
+
+# Create the Venn diagram
+DG_MP <- venn.diagram(
+  x = list(
+    Pre = pre_taxa,
+    Post = post_taxa,
+    "Pre+Post" = pre_post_taxa
+  ),
+  category.names = c("Pre", "Post", "Pre+Post"),
+  fill = c("red", "green", "blue"),
+  alpha = 0.5,
+  cex = 2,
+  cat.cex = 2,
+  filename = NULL  # Keep it in R session instead of saving to file
+)
+
+# Remove zero labels from the Venn diagram
+for (i in seq_along(venn.plot)) {
+  if (!is.null(venn.plot[[i]]$label) && venn.plot[[i]]$label %in% c("0")) {
+    venn.plot[[i]]$label <- ""
+  }
+}
+
+```
+
+Create a figure
+
+```{r}
+# Draw the Venn diagrams with titles
+venn1_grob <- grobTree(BP_CONTROL, textGrob("BP Control", x = 0.5, y = 1, just = "top", gp = gpar(fontsize = 14)))
+venn2_grob <- grobTree(BP_MP, textGrob("BP MP", x = 0.5, y = 1, just = "top", gp = gpar(fontsize = 14)))
+venn3_grob <- grobTree(DG_CONTROL, textGrob("DG Control", x = 0.5, y = 1, just = "top", gp = gpar(fontsize = 14)))
+venn4_grob <- grobTree(DG_MP, textGrob("DG MP", x = 0.5, y = 1, just = "top", gp = gpar(fontsize = 14)))
+
+
+# Combine the Venn diagrams into one figure using grid.arrange
+grid.arrange(venn1_grob, venn2_grob, venn3_grob, venn4_grob, ncol = 2)
+```
+
+
+
+
+

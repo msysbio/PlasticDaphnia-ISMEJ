@@ -1,0 +1,15 @@
+#!/bin/bash -l
+
+#SBATCH --cluster=genius
+#SBATCH --time=48:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=36
+#SBATCH --account=lkulak_daphnia_gp
+
+cd /staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/bacteria_contigs
+
+while IFS= read -r id; do
+	/staging/leuven/stg_00106/tools/Prodigal-2.6.3/prodigal -p meta -i ${id}_bac_contigs.fa -o ${id}_predicted_genes.gbk -a ${id}_proteins.fa -d ${id}_nucleotides.fn
+done < ./ID
+
+
