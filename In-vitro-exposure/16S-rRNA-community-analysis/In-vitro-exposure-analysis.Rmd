@@ -1,0 +1,592 @@
+---
+title: "MPs exposure experiments"
+output: html_notebook
+---
+
+```{r}
+library(phyloseq)
+library(vegan)
+library(ggplot2)
+library(ggpubr)
+```
+
+Load table: Daphnia
+```{r}
+#Load phyloseq (rarefied)
+ps_mic = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/phyloseq/decontam/ps_rare_daphnia_decontam.rds")
+#load meta
+meta = read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/decontaminated_set/merged_meta.csv",row.names = 1)
+```
+
+Load metadata into ps
+```{r}
+# Extract common sample IDs
+common_sample_ids <- intersect(sample_names(ps_mic), row.names(meta))
+# Subset metadata to include only common sample IDs
+filtered_meta <- meta[common_sample_ids, ]
+# Assign filtered metadata as sample_data for ps_bac
+sample_data(ps_mic) <- filtered_meta
+ps_mic <- subset_samples(ps_mic, Exposure_time !="Pre-Env") #remove 2 extra env-samples
+```
+
+Q:Is microbial composition different (both ponds) between MP exposed and exposure control? Daphnia in general
+
+```{r}
+subset_phyloseq <- subset_samples(ps_mic, Exposure_time =="Post" &  Plastic != "C" | Exposure_time =="Post" & Plastic == "C")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+#Dispersion
+dispersion_test <- betadisper(bray, filtered_meta$Plastic_presence,bias.adjust =TRUE)
+# Perform permutation test
+permutest(dispersion_test, permutations = 999)#0.673
+
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+           Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups      1 0.00137 0.0013713 0.1649    999  0.673
+Residuals 106 0.88170 0.0083179    
+"
+
+#Permanova
+permanova_result <- adonis2(bray~ Plastic_presence, data = filtered_meta, na.action = na.omit) #0.39
+permanova_result 
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Plastic_presence, data = filtered_meta, na.action = na.omit)
+          Df SumOfSqs      R2      F Pr(>F)
+Model      1    0.239 0.00645 0.6876   0.81
+Residual 106   36.890 0.99355              
+Total    107   37.130 1.00000       
+"
+#
+```
+A: There is no significant difference between MP exposed and non-MP exposed microbiomes.
+
+Q: Is microbial composition different (both ponds) between MP exposed and exposure control? In BP inoculum samples.
+
+```{r}
+subset_phyloseq <- subset_samples(ps_mic, Exposure_time =="Post" &  Plastic != "C"  & Pond=="BP" | Exposure_time =="Post" & Plastic == "C" & Pond=="BP")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+#Dispersion
+dispersion_test <- betadisper(bray, filtered_meta$Plastic_presence,bias.adjust =TRUE)
+# Perform permutation test
+permutest(dispersion_test, permutations = 999)#0.108
+
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.03125 0.031254 2.8588    999   0.11
+Residuals 66 0.72156 0.010933    
+"
+
+#Permanova
+permanova_result <- adonis2(bray~ Plastic_presence, data = filtered_meta, na.action = na.omit) #0.39
+permanova_result 
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Plastic_presence, data = filtered_meta, na.action = na.omit)
+         Df SumOfSqs      R2      F Pr(>F)
+Model     1   0.3627 0.01641 1.1011  0.323
+Residual 66  21.7409 0.98359              
+Total    67  22.1036 1.00000          
+"
+
+```
+Q: There is no significant difference between MP exposed and non-MP exposed microbiome in BP inoculum samples.
+
+Figure 7A: Post-exposure Daphnia microbiome samples coloured by plastic (yes/no) and shape by type (PET/Nylon/PLA)- BP
+
+```{r}
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.2290142 #Stress it too high so cannot use NMDS
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Extract the percentage of variance explained by each axis from the ordination result
+eigenvalues <- PCoA_result$CA$eig
+variance_explained <- eigenvalues / sum(eigenvalues) * 100
+
+# Update plot to show variance captured by PCoA1 and PCoA2
+Fig7A = plot_ordination(subset_phyloseq, PCoA_result, color = "Plastic_presence", shape = "Plastic") +  
+  geom_point(size = 3) +  
+  scale_shape_manual(values = c(4, 16, 2, 7), 
+                     labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
+  labs(title = expression(italic("Daphnia magna") * "+ community composition post-exposure in BP-inoculum"), 
+       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       color = "MPs presence",
+       shape = "MP type") +  # Updated shape legend label
+  theme_pubr()
+Fig7A
+```
+
+Is microbial composition different (both ponds) between MP exposed and exposure control? In DG inoculum samples.
+
+```{r}
+subset_phyloseq <- subset_samples(ps_mic, Exposure_time =="Post" &  Plastic != "C" & Pond=="DG" | Exposure_time =="Post" & Plastic == "C"  & Pond=="DG")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+#Dispersion
+dispersion_test <- betadisper(bray, filtered_meta$Plastic_presence,bias.adjust =TRUE)
+# Perform permutation test
+permutest(dispersion_test, permutations = 999)#0.477
+
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.00993 0.0099263 0.5602    999  0.477
+Residuals 38 0.67331 0.0177188     
+"
+
+#Permanova
+permanova_result <- adonis2(bray~ Plastic_presence, data = filtered_meta, na.action = na.omit) #0.39
+permanova_result 
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Plastic_presence, data = filtered_meta, na.action = na.omit)
+         Df SumOfSqs     R2      F Pr(>F)
+Model     1   0.3858 0.0321 1.2602  0.202
+Residual 38  11.6346 0.9679              
+Total    39  12.0204 1.0000        
+"
+
+```
+A: There is no significant difference between MP exposed and non-MP exposed microbiome in DG inoculum samples.
+
+Figure 7B: Post-exposure Daphnia microbiome samples coloured by plastic (yes/no) and shape by type (PET/Nylon/PLA)- BP
+```{r}
+nmds_result <- metaMDS(bray, trymax = 100,k=2)  # stress = 0.16493 #Stress is acceptable but to keep it consistent I will do a PCoA
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Extract the percentage of variance explained by each axis from the ordination result
+eigenvalues <- PCoA_result$CA$eig
+variance_explained <- eigenvalues / sum(eigenvalues) * 100
+
+# Update plot to show variance captured by PCoA1 and PCoA2
+Fig7B = plot_ordination(subset_phyloseq, PCoA_result, color = "Plastic_presence", shape = "Plastic") +  
+  geom_point(size = 3) +  
+  scale_shape_manual(values = c(4, 16, 2, 7), 
+                     labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
+  labs(title = expression(italic("Daphnia magna") * " community composition post-exposure in DG-inoculum"), 
+       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       color = "MPs presence",
+       shape = "MP type") +  # Updated shape legend label
+  theme_pubr()
+Fig7B
+
+```
+
+Q. What's the microbiome composition of pre-exposure lab Daphnia (i.e. clone control) vs the exposure controls (post-exposure, no MPs added)?
+
+```{r}
+subset_phyloseq <- subset_samples(ps_mic, Exposure_time =="Pre" | Exposure_time =="Post" & Plastic == "C"& Age == "Adult")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+#Dispersion
+dispersion_test <- betadisper(bray, filtered_meta$Exposure_time,bias.adjust =TRUE)
+# Perform permutation test
+permutest(dispersion_test, permutations = 999)#0.139
+
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq     F N.Perm Pr(>F)
+Groups     1 0.06626 0.066262 2.363    999  0.139
+Residuals 15 0.42063 0.028042  
+"
+
+#Permanova
+permanova_result <- adonis2(bray~ Exposure_time, data = filtered_meta, na.action = na.omit) #0.39
+permanova_result 
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Exposure_time, data = filtered_meta, na.action = na.omit)
+         Df SumOfSqs      R2      F Pr(>F)   
+Model     1   0.8163 0.17305 3.1389  0.002 **
+Residual 15   3.9011 0.82695                 
+Total    16   4.7174 1.00000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"
+```
+
+Figure 7C: Is there a significant difference between post-MPs exposure microbiome and the surrounding bacterioplankton? 
+
+Load table: Daphnia + Bacterioplankton
+
+```{r}
+#Load phyloseq (rarefied)
+ps = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/phyloseq/decontam/merged_phyloseq_rarified.rds")
+
+#load meta
+meta = read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Exposure-Niki/tables/decontaminated_set/merged_meta.csv",row.names = 1)
+
+```
+
+Load metadata into ps
+```{r}
+# Extract common sample IDs
+common_sample_ids <- intersect(sample_names(ps), row.names(meta))
+# Subset metadata to include only common sample IDs
+filtered_meta <- meta[common_sample_ids, ]
+# Assign filtered metadata as sample_data for ps_bac
+sample_data(ps) <- filtered_meta
+```
+
+
+```{r}
+#####BP
+subset_phyloseq <- subset_samples(ps, Pond=="BP" & Exposure_time =="Post" & Category == "Daphnia: Post-exposure"| Pond=="BP" & Exposure_time =="Post" & Category == "Bacterioplankton: Post-exposure")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+#Dispersion
+dispersion_test <- betadisper(bray, filtered_meta$Category,bias.adjust =TRUE)
+# Perform permutation test
+permutest(dispersion_test, permutations = 999)# 0.051 
+
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq      F N.Perm Pr(>F)  
+Groups     1 0.07122 0.071216 3.9809    999  0.063 .
+Residuals 76 1.35961 0.017890                       
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"
+
+#Permanova
+permanova_result <- adonis2(bray~ Category, data = filtered_meta, na.action = na.omit) #0.39
+permanova_result 
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Category, data = filtered_meta, na.action = na.omit)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   1.8312 0.07365 6.0428  0.001 ***
+Residual 76  23.0308 0.92635                  
+Total    77  24.8619 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Extract the percentage of variance explained by each axis from the ordination result
+eigenvalues <- PCoA_result$CA$eig
+variance_explained <- eigenvalues / sum(eigenvalues) * 100
+
+# Update plot to show variance captured by PCoA1 and PCoA2
+Fig7C=plot_ordination(subset_phyloseq, PCoA_result, color = "Type", shape = "Plastic") +  
+  geom_point(size = 4) +  
+  scale_shape_manual(values = c(4, 16, 2, 7), 
+                     labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
+  labs(title = expression(italic("Daphnia magna") * "+ Bacterioplankton community composition post-exposure in BP-inoculum"), 
+       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       color = "Type",
+       shape = "MP") +  
+  theme_pubr() +
+  theme(plot.title = element_text(size = 12))  # Adjust the size of the title
+Fig7C
+```
+
+```{r}
+#####DG
+subset_phyloseq <- subset_samples(ps, Pond=="DG" & Exposure_time =="Post" & Category == "Daphnia: Post-exposure"| Pond=="DG" & Exposure_time =="Post" & Category == "Bacterioplankton: Post-exposure")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+#Dispersion
+dispersion_test <- betadisper(bray, filtered_meta$Category,bias.adjust =TRUE)
+# Perform permutation test
+permutest(dispersion_test, permutations = 999)# 0.051 
+
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.00284 0.0028404 0.1995    999  0.653
+Residuals 58 0.82595 0.0142405
+"
+
+#Permanova
+permanova_result <- adonis2(bray~ Category, data = filtered_meta, na.action = na.omit) #0.39
+permanova_result 
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Category, data = filtered_meta, na.action = na.omit)
+         Df SumOfSqs      R2      F Pr(>F)    
+Model     1   2.3796 0.13169 8.7967  0.001 ***
+Residual 58  15.6897 0.86831                  
+Total    59  18.0693 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"
+
+PCoA_result <- capscale(bray ~ 1)
+
+# Extract the percentage of variance explained by each axis from the ordination result
+eigenvalues <- PCoA_result$CA$eig
+variance_explained <- eigenvalues / sum(eigenvalues) * 100
+
+# Update plot to show variance captured by PCoA1 and PCoA2
+Fig7D=plot_ordination(subset_phyloseq, PCoA_result, color = "Type", shape = "Plastic") +  
+  geom_point(size = 4) +  
+  scale_shape_manual(values = c(4, 16, 2, 7), 
+                     labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
+  labs(title = expression(italic("Daphnia magna") * "+ Bacterioplankton community composition post-exposure in DG-inoculum"), 
+       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       color = "Type",
+       shape = "MP") +  
+  theme_pubr() +
+  theme(plot.title = element_text(size = 12))  # Adjust the size of the title
+Fig7D
+```
+
+Make a combined plot for manuscript:
+
+```{r}
+figure <- ggarrange(Fig7A, Fig7B, Fig7C,Fig7D,
+                    labels = c("A", "B", "C","D"),
+                    ncol = 2, nrow = 2)
+figure
+ggsave(filename='Figure7Combined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/Figures',device='tiff')
+```
+
+
+
+Q: Is there a difference between bacterioplankton community when Daphnia was present vs when it was absent?
+
+Load ps-object and metadata
+```{r}
+#Load phyloseq (rarefied)
+ps_bac = readRDS("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/phyloseq/decontam/ps_rare_bacteroplankton_decontam.rds")
+
+#load meta
+meta = read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Exposure-Niki/tables/decontaminated_set/merged_meta.csv",row.names = 1)
+```
+
+Load metadata into ps
+
+```{r}
+# Extract common sample IDs
+common_sample_ids <- intersect(sample_names(ps_bac), row.names(meta))
+# Subset metadata to include only common sample IDs
+filtered_meta <- meta[common_sample_ids, ]
+# Assign filtered metadata as sample_data for ps_bac
+sample_data(ps_bac) <- filtered_meta
+```
+
+BLAUWE POORT:
+```{r}
+subset_phyloseq <- subset_samples(ps_bac, Pond == "BP" & Clone =="C" & Exposure_time=="Post" | Pond == "BP" & Clone != "H2O" & Exposure_time =="Post")
+meta_data <- data.frame(sample_data(subset_phyloseq))
+meta_data$Daphnia_present <- ifelse(meta_data$Clone == "C", "absent", "present")
+
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+
+permanova_result <- adonis2(bray~ Daphnia_present, data = meta_data, method = "bray")
+print(permanova_result) #0.002 **
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Daphnia_present, data = meta_data, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)   
+Model     1   1.1144 0.09771 4.3319  0.002 **
+Residual 40  10.2905 0.90229                 
+Total    41  11.4049 1.00000    
+
+"
+dispersion_test <- betadisper(bray, meta_data$Daphnia_present)
+permutest(dispersion_test,permutations = 999) #0.114
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq  Mean Sq    F N.Perm Pr(>F)
+Groups     1 0.05419 0.054194 2.34    999  0.114
+Residuals 40 0.92640 0.023160  
+"
+```
+
+DE_GAVERS:
+```{r}
+subset_phyloseq <- subset_samples(ps_bac, Pond == "DG" & Clone =="C" & Exposure_time=="Post" | Pond == "DG" & Clone != "H2O" & Exposure_time =="Post")
+meta_data <- data.frame(sample_data(subset_phyloseq))
+meta_data$Daphnia_present <- ifelse(meta_data$Clone == "C", "absent", "present")
+
+bray <- vegdist(data.frame(t(otu_table(subset_phyloseq))), method="bray") #creating dissimilarity matrix with vegdist using bray curtis
+
+permanova_result <- adonis2(bray~ Daphnia_present, data = meta_data, method = "bray")
+print(permanova_result) #0.008 **
+
+"
+Permutation test for adonis under reduced model
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Daphnia_present, data = meta_data, method = "bray")
+         Df SumOfSqs      R2      F Pr(>F)   
+Model     1   0.7323 0.06474 2.8383  0.008 **
+Residual 41  10.5785 0.93526                 
+Total    42  11.3108 1.00000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"
+dispersion_test <- betadisper(bray, meta_data$Daphnia_present)
+permutest(dispersion_test,permutations = 999) #0.114
+"
+Permutation test for homogeneity of multivariate dispersions
+Permutation: free
+Number of permutations: 999
+
+Response: Distances
+          Df  Sum Sq   Mean Sq      F N.Perm Pr(>F)
+Groups     1 0.01859 0.0185881 1.8621    999   0.18
+Residuals 41 0.40927 0.0099822     
+
+
+```
+
+What are significant effects? All samples
+
+```{r}
+subset_phyloseq <- subset_samples(ps_mic, Exposure_time !="Pre" & Plastic != "C")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+permanova_result <- adonis2(bray ~ Pond + Clone + Plastic + Age, data = filtered_meta, permutations = 999, by="terms")
+print(permanova_result)
+
+"
+Permutation test for adonis under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Pond + Clone + Plastic + Age, data = filtered_meta, permutations = 999, by = "terms")
+         Df SumOfSqs      R2      F Pr(>F)    
+Pond      1   2.2272 0.07143 6.9880  0.001 ***
+Clone     3   1.3139 0.04214 1.3741  0.064 .  
+Plastic   2   0.6284 0.02016 0.9859  0.445    
+Age       1   0.8738 0.02803 2.7416  0.001 ***
+Residual 82  26.1346 0.83824                  
+Total    89  31.1778 1.00000                  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+"
+```
+
+What are significant effects? BP
+
+```{r}
+subset_phyloseq <- subset_samples(ps_mic, Exposure_time !="Pre" & Plastic != "C" & Pond == "BP")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+permanova_result <- adonis2(bray~ Clone+Plastic+Age, data = filtered_meta, na.action = na.omit, permutations = 999, by = "terms")
+permanova_result
+
+"
+Permutation test for adonis under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Clone + Plastic + Age, data = filtered_meta, permutations = 999, by = "terms", na.action = na.omit)
+         Df SumOfSqs      R2      F Pr(>F)   
+Clone     3   1.0745 0.05740 1.0969  0.307   
+Plastic   2   0.7683 0.04105 1.1766  0.220   
+Age       1   0.8772 0.04686 2.6866  0.003 **
+Residual 49  15.9990 0.85469                 
+Total    55  18.7191 1.00000                 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+"
+```
+
+What are significant effects? DG
+
+```{r}
+subset_phyloseq <- subset_samples(ps_mic, Exposure_time !="Pre" & Plastic != "C" & Pond == "DG")
+filtered_meta <- data.frame(sample_data(subset_phyloseq))
+bray <- vegdist(as.data.frame(t(otu_table(subset_phyloseq)), method="bray")) #creating dissimilarity matrix with vegdist using bray curtis
+
+permanova_result <- adonis2(bray~ Clone+Plastic+Age, data = filtered_meta, na.action = na.omit, permutations = 999, by = "terms")
+permanova_result
+
+"
+Permutation test for adonis under reduced model
+Terms added sequentially (first to last)
+Permutation: free
+Number of permutations: 999
+
+adonis2(formula = bray ~ Clone + Plastic + Age, data = filtered_meta, permutations = 999, by = "terms", na.action = na.omit)
+         Df SumOfSqs      R2      F Pr(>F)
+Clone     3   1.0797 0.10553 1.1990  0.203
+Plastic   2   0.6222 0.06081 1.0363  0.391
+Age       1   0.4248 0.04152 1.4150  0.166
+Residual 27   8.1049 0.79215              
+Total    33  10.2316 1.00000  
+
+"
+```

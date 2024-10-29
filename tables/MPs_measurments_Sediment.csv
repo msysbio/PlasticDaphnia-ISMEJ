@@ -1,0 +1,43 @@
+﻿Sample_code,Total MPs,Total_MPs_per_gram,m_sample_analyzed_(g),Location,Pond Category,Type,Sub-type
+S-MVR-DWR-1,1,0.02,50,Meer van Rotselaar-DW,Natural pond,Sediment,Core
+S-MVR-DWR-2,9,0.18,50,Meer van Rotselaar-DW,Natural pond,Sediment,Core
+S-MVR-DWR-3,2,0.04,50,Meer van Rotselaar-DW,Natural pond,Sediment,Core
+S-DG-1,36,0.72,50,De Gavers,Natural pond,Sediment,Core
+S-DG-2,38,0.76,50,De Gavers,Natural pond,Sediment,Core
+S-DG-3,20,0.4,50,De Gavers,Natural pond,Sediment,Core
+S-KL-1,55,55,1,Kluizen,City pond,Sediment,Mix
+S-KL-2,1,7.692307692,0.13,Kluizen,City pond,Sediment,Mix
+S-KL-3,2,2,1,Kluizen,City pond,Sediment,Mix
+S-LRV-1,9,0.18,50,Lange Rode Vijver,Natural pond,Sediment,Core
+S-LRV-2,9,0.18,50,Lange Rode Vijver,Natural pond,Sediment,Core
+S-LRV-3,167,3.34,50,Lange Rode Vijver,Natural pond,Sediment,Core
+S-Rkulak-1,16,0.32,50,Reserve Kulak,Natural pond,Sediment,Core
+S-Rkulak-2,5,0.1,50,Reserve Kulak,Natural pond,Sediment,Core
+S-Rkulak-3,4,0.08,50,Reserve Kulak,Natural pond,Sediment,Core
+S-DB-1,57,1.14,50,De Bourgoyen,Natural pond,Sediment,Core
+S-DB-2,7,0.14,50,De Bourgoyen,Natural pond,Sediment,Core
+S-DB-3,51,1.02,50,De Bourgoyen,Natural pond,Sediment,Core
+S-MVR-RP-1,1,0.02,50,Meer van Rotselaar-RP,Natural pond,Sediment,Core
+S-MVR-RP-2,217,4.34,50,Meer van Rotselaar-RP,Natural pond,Sediment,Core
+S-MVR-RP-3,216,4.32,50,Meer van Rotselaar-RP,Natural pond,Sediment,Core
+S-EB-1,2,0.04,50,Evangelie Boom,Natural pond,Sediment,Core
+S-EB-2,33,0.66,50,Evangelie Boom,Natural pond,Sediment,Core
+S-EB-3,31,0.62,50,Evangelie Boom,Natural pond,Sediment,Core
+S-DO-1,380,7.6,50,Donk-Oudenaarde,Natural pond,Sediment,Core
+S-DO-2,38,0.76,50,Donk-Oudenaarde,Natural pond,Sediment,Core
+S-DO-3,2,0.04,50,Donk-Oudenaarde,Natural pond,Sediment,Core
+S-SDP-1,0,0,0.35,Sint-Donatus Park,City pond,Sediment,Mix
+S-SDP-2,Measurment failed,NaN,1,Sint-Donatus Park,City pond,Sediment,Mix
+S-SDP-3,Measurment failed,NaN,1,Sint-Donatus Park,City pond,Sediment,Mix
+S-BP-1,11,0.22,50,Blauwe Poort Park,City pond,Sediment,Core
+S-BP-2,163,3.26,50,Blauwe Poort Park,City pond,Sediment,Core
+S-BP-3,1373,27.46,50,Blauwe Poort Park,City pond,Sediment,Core
+S-LWWTP-1,Measurment failed,NaN,1,Leuven WWTP,WWTP,Sediment,Sludge
+S-LWWTP-2,Measurment failed,NaN,1,Leuven WWTP,WWTP,Sediment,Sludge
+S-LWWTP-3,Measurment failed,NaN,1,Leuven WWTP,WWTP,Sediment,Sludge
+S-HWWTP-1,Measurment failed,NaN,1,Harelbeke WWTP,WWTP,Sediment,Sludge
+S-HWWTP-2,108,108,1,Harelbeke WWTP,WWTP,Sediment,Sludge
+S-HWWTP-3,Measurment failed,NaN,1,Harelbeke WWTP,WWTP,Sediment,Sludge
+S-DWWTP-1,Measurment failed,NaN,1,Olsene WWTP,WWTP,Sediment,Sludge
+S-DWWTP-2,239,239,1,Olsene WWTP,WWTP,Sediment,Sludge
+S-DWWTP-3,Measurment failed,NaN,1,Olsene WWTP,WWTP,Sediment,Sludge

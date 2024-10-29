@@ -1,0 +1,35 @@
+#!/bin/bash -l
+#SBATCH --cluster=genius
+#SBATCH --time=24:00:00
+#SBATCH --nodes=3
+#SBATCH --ntasks-per-node=36
+#SBATCH --account=lkulak_daphnia_gp
+
+cd /staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/contamination_filtered/reads
+
+#Blauwe poort
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127846_clean_R1.fastq.gz,GC127847_clean_R1.fastq.gz,GC127848_clean_R1.fastq.gz,GC127849_clean_R1.fastq.gz -2 GC127846_clean_R2.fastq.gz,GC127847_clean_R2.fastq.gz,GC127848_clean_R2.fastq.gz,GC127849_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/Blauwe_Poort' --out-prefix 'Blauwe_poort' -t 36
+
+#Bourgoyen
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127852_clean_R1.fastq.gz,GC127856_clean_R1.fastq.gz,GC127866_clean_R1.fastq.gz -2 GC127852_clean_R2.fastq.gz,GC127856_clean_R2.fastq.gz,GC127866_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/Bourgoyen' --out-prefix 'Bourgoyen' -t 36
+
+#Citadell
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125618_clean_R1.fastq.gz,GC127864_clean_R1.fastq.gz -2 GC125618_clean_R2.fastq.gz,GC127864_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/Citadell' --out-prefix 'Citadell' -t 36
+
+#Evangelie
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127868_clean_R1.fastq.gz -2 GC127868_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/Evangelie' --out-prefix 'Evangelie' -t 36
+
+#Kluizen
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127871_clean_R1.fastq.gz,GC127874_clean_R1.fastq.gz -2 GC127871_clean_R2.fastq.gz,GC127874_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/Kluizen' --out-prefix 'Kluizen' -t 36
+
+#LRF
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125610_clean_R1.fastq.gz,GC125611_clean_R1.fastq.gz,GC125612_clean_R1.fastq.gz,GC127826_clean_R1.fastq.gz,GC127827_clean_R1.fastq.gz,GC127828_clean_R1.fastq.gz,GC127829_clean_R1.fastq.gz,GC127830_clean_R1.fastq.gz,GC127831_clean_R1.fastq.gz,GC127832_clean_R1.fastq.gz,GC127833_clean_R1.fastq.gz,GC127834_clean_R1.fastq.gz,GC127835_clean_R1.fastq.gz,GC127836_clean_R1.fastq.gz,GC127837_clean_R1.fastq.gz,GC127838_clean_R1.fastq.gz,GC127839_clean_R1.fastq.gz,GC127840_clean_R1.fastq.gz,GC127841_clean_R1.fastq.gz,GC127843_clean_R1.fastq.gz,GC127844_clean_R1.fastq.gz,GC127845_clean_R1.fastq.gz -2 GC125610_clean_R2.fastq.gz,GC125611_clean_R2.fastq.gz,GC125612_clean_R2.fastq.gz,GC127826_clean_R2.fastq.gz,GC127827_clean_R2.fastq.gz,GC127828_clean_R2.fastq.gz,GC127829_clean_R2.fastq.gz,GC127830_clean_R2.fastq.gz,GC127831_clean_R2.fastq.gz,GC127832_clean_R2.fastq.gz,GC127833_clean_R2.fastq.gz,GC127834_clean_R2.fastq.gz,GC127835_clean_R2.fastq.gz,GC127836_clean_R2.fastq.gz,GC127837_clean_R2.fastq.gz,GC127838_clean_R2.fastq.gz,GC127839_clean_R2.fastq.gz,GC127840_clean_R2.fastq.gz,GC127841_clean_R2.fastq.gz,GC127843_clean_R2.fastq.gz,GC127844_clean_R2.fastq.gz,GC127845_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/LRF' --out-prefix 'LRF' -t 36 --continue
+
+#Rotselaar
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127853_clean_R1.fastq.gz -2 GC127853_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/Rotselaar' --out-prefix 'Rotselaar' -t 36
+
+#St.Donatus
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127855_clean_R1.fastq.gz,GC127867_clean_R1.fastq.gz -2 GC127855_clean_R2.fastq.gz,GC127867_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Daphnia_microbiome/Assembly/St.Donatus' --out-prefix 'St.Donatus' -t 36
+
+
+

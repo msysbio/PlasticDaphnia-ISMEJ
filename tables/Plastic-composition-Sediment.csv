@@ -1,0 +1,31 @@
+﻿PE_PP,PE_PP_per_gram,PS,PS_per_gram,PET_polyester,PET_polyester_per_gram,PVC,PVC_per_gram,m_sample_analyzed_(g),Location,Sample_code,Category
+1,0.02,0,0,0,0,0,0,50,Meer van Rotselaar-DW,S-MVR-DWR-1,Low MPs
+4,0.08,0,0,5,0.1,0,0,50,Meer van Rotselaar-DW,S-MVR-DWR-2,Low MPs
+0,0,0,0,2,0.04,0,0,50,Meer van Rotselaar-DW,S-MVR-DWR-3,Low MPs
+1,0.02,1,0.02,34,0.68,0,0,50,De Gavers,S-DG-1,Low MPs
+35,0.7,3,0.06,0,0,0,0,50,De Gavers,S-DG-2,Low MPs
+0,0,4,0.08,16,0.32,0,0,50,De Gavers,S-DG-3,Low MPs
+47,47,8,8,0,0,0,0,1,Kluizen,S-KL-1,High MPs
+1,7.692307692,0,0,0,0,0,0,0.13,Kluizen,S-KL-2,High MPs
+2,2,0,0,0,0,0,0,1,Kluizen,S-KL-3,High MPs
+1,0.02,4,0.08,4,0.08,0,0,50,Lange Rode Vijver,S-LRV-1,Low MPs
+0,0,1,0.02,8,0.16,0,0,50,Lange Rode Vijver,S-LRV-2,Low MPs
+85,1.7,74,1.48,8,0.16,0,0,50,Lange Rode Vijver,S-LRV-3,Low MPs
+16,0.32,0,0,0,0,0,0,50,Reserve Kulak,S-Rkulak-1,Low MPs
+0,0,3,0.06,2,0.04,0,0,50,Reserve Kulak,S-Rkulak-2,Low MPs
+3,0.06,0,0,1,0.02,0,0,50,Reserve Kulak,S-Rkulak-3,Low MPs
+51,1.02,0,0,6,0.12,0,0,50,De Bourgoyen,S-DB-1,Low MPs
+7,0.14,0,0,0,0,0,0,50,De Bourgoyen,S-DB-2,Low MPs
+49,0.98,2,0.04,0,0,0,0,50,De Bourgoyen,S-DB-3,Low MPs
+1,0.02,0,0,0,0,0,0,50,Meer van Rotselaar-RP,S-MVR-RP-1,Low MPs
+70,1.4,147,2.94,0,0,0,0,50,Meer van Rotselaar-RP,S-MVR-RP-2,Low MPs
+52,1.04,162,3.24,2,0.04,0,0,50,Meer van Rotselaar-RP,S-MVR-RP-3,Low MPs
+0,0,0,0,2,0.04,0,0,50,Evangelie Boom,S-EB-1,Low MPs
+33,0.66,0,0,0,0,0,0,50,Evangelie Boom,S-EB-2,Low MPs
+31,0.62,0,0,0,0,0,0,50,Evangelie Boom,S-EB-3,Low MPs
+64,1.28,272,5.44,44,0.88,0,0,50,Donk-Oudenaarde,S-DO-1,Low MPs
+26,0.52,12,0.24,0,0,0,0,50,Donk-Oudenaarde,S-DO-2,Low MPs
+2,0.04,0,0,0,0,0,0,50,Donk-Oudenaarde,S-DO-3,Low MPs
+5,0.1,0,0,6,0.12,0,0,50,Blauwe Poort Park,S-BP-1,High MPs
+54,1.08,107,2.14,2,0.04,0,0,50,Blauwe Poort Park,S-BP-2,High MPs
+27,0.54,1197,23.94,149,2.98,0,0,50,Blauwe Poort Park,S-BP-3,High MPs

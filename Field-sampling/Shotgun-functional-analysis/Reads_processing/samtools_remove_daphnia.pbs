@@ -1,0 +1,25 @@
+#!/bin/bash
+
+#PBS -A lfaust_group
+#PBS -l nodes=1:ppn=36
+#PBS -l walltime=10:00:00
+#PBS -l mem=180gb
+
+cd /staging/leuven/stg_00106/PlasticDaphnia/reads/host_depleted/samtools_files
+
+module purge
+module load SAMtools/1.9-foss-2018a
+
+while IFS= read -r id; do
+	samtools view -b -f 12 -F 256 "${id}_mapped_and_unmapped.bam" > "${id}_bothReadsUnmapped.bam"
+done < ./daphnia_samples
+
+while IFS= read -r id; do
+	samtools sort -n -m 5G -@ 2 "${id}_bothReadsUnmapped.bam" -o "${id}_bothReadsUnmapped_sorted.bam"
+done < ./daphnia_samples
+
+while IFS= read -r id; do
+	samtools fastq -@ 8 "${id}_bothReadsUnmapped_sorted.bam" -1 "${id}_host_removed_R1.fastq.gz" -2 "${id}_host_removed_R2.fastq.gz" -0 /dev/null -s /dev/null -n
+done < ./daphnia_samples
+
+

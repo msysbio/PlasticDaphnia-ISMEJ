@@ -1,0 +1,56 @@
+#!/bin/bash
+
+#SBATCH --cluster=genius
+#SBATCH --time=48:00:00
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=36
+#SBATCH --account=lmsysbio
+
+cd /staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/contamination_filtered/reads
+
+#Blauwe_poort
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125633_clean_R1.fastq.gz,GC125648_clean_R1.fastq.gz,GC125657_clean_R1.fastq.gz,GC125668_clean_R1.fastq.gz -2 GC125633_clean_R2.fastq.gz,GC125648_clean_R2.fastq.gz,GC125657_clean_R2.fastq.gz,GC125668_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Blauwe_poort' --out-prefix 'Blauwe_poort' -t 36
+
+#Bourgoyen
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127899_clean_R1.fastq.gz,GC127920_clean_R1.fastq.gz -2 GC127899_clean_R2.fastq.gz,GC127920_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Bourgoyen' --out-prefix 'Bourgoyen' -t 36
+
+#Citadell
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125654_clean_R1.fastq.gz,GC127907_clean_R1.fastq.gz -2 GC125654_clean_R2.fastq.gz,GC127907_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Citadell' --out-prefix 'Citadell' -t 36
+
+#De_Gavers
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125640_clean_R1.fastq.gz,GC125653_clean_R1.fastq.gz,GC127893_clean_R1.fastq.gz,GC127894_clean_R1.fastq.gz -2 GC125640_clean_R2.fastq.gz,GC125653_clean_R2.fastq.gz,GC127893_clean_R2.fastq.gz,GC127894_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/De_Gavers' --out-prefix 'De_Gavers' -t 36 --continue
+
+#Donk_Oudenaarde
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125664_clean_R1.fastq.gz,GC127878_clean_R1.fastq.gz -2 GC125664_clean_R2.fastq.gz,GC127878_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Donk_Oudenaarde' --out-prefix 'Donk_Oudenaarde' -t 36
+
+#Evangelie
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125643_clean_R1.fastq.gz,GC127915_clean_R1.fastq.gz -2 GC125643_clean_R2.fastq.gz,GC127915_clean_R2.fastq.gz  -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Evangelie' --out-prefix 'Evangelie' -t 36
+
+#Kluizen
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125655_clean_R1.fastq.gz,GC125656_clean_R1.fastq.gz,GC127909_clean_R1.fastq.gz,GC127912_clean_R1.fastq.gz -2 GC125655_clean_R2.fastq.gz,GC125656_clean_R2.fastq.gz,GC127909_clean_R2.fastq.gz,GC127912_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Kluizen' --out-prefix 'Kluizen' -t 36
+
+#LRV
+#/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127906_clean_R1.fastq.gz,GC127914_clean_R1.fastq.gz -2 GC127906_clean_R2.fastq.gz,GC127914_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/LRV' --out-prefix 'LRV' -t 5
+
+#MVR
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125646_clean_R1.fastq.gz,GC125659_clean_R1.fastq.gz -2 GC125646_clean_R2.fastq.gz,GC125659_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/MVR' --out-prefix 'MVR' -t 36 --continue
+
+#Reserve_next_to_Kulak
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125649_clean_R1.fastq.gz,GC127917_clean_R1.fastq.gz -2 GC125649_clean_R2.fastq.gz,GC127917_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Reserve_next_to_Kulak' --out-prefix 'Reserve_next_to_Kulak' -t 36 --continue
+
+#Rotselaar
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125630_clean_R1.fastq.gz,GC125661_clean_R1.fastq.gz,GC127884_clean_R1.fastq.gz,GC127896_clean_R1.fastq.gz -2 GC125630_clean_R2.fastq.gz,GC125661_clean_R2.fastq.gz,GC127884_clean_R2.fastq.gz,GC127896_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/Rotselaar' --out-prefix 'Rotselaar' -t 36 --continue
+
+#St.Donatus_Park
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125662_clean_R1.fastq.gz,GC125663_clean_R1.fastq.gz,GC127881_clean_R1.fastq.gz,GC127900_clean_R1.fastq.gz -2 GC125662_clean_R2.fastq.gz,GC125663_clean_R2.fastq.gz,GC127881_clean_R2.fastq.gz,GC127900_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/St.Donatus_Park' --out-prefix 'St.Donatus_Park' -t 36
+
+#WWTP_Harelbeke
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127890_clean_R1.fastq.gz -2 GC127890_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/WWTP_Harelbeke' --out-prefix 'WWTP_Harelbeke' -t 36
+
+#WWTP_Leuven
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC125636_clean_R1.fastq.gz,GC125652_clean_R1.fastq.gz,GC125665_clean_R1.fastq.gz -2 GC125636_clean_R2.fastq.gz,GC125652_clean_R2.fastq.gz,GC125665_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/WWTP_Leuven' --out-prefix 'WWTP_Leuven' -t 36
+
+#WWTP_Olsene
+/staging/leuven/stg_00106/tools/MEGAHIT-1.2.9-Linux-x86_64-static/bin/megahit -1 GC127919_clean_R1.fastq.gz -2 GC127919_clean_R2.fastq.gz -o '/staging/leuven/stg_00106/PlasticDaphnia-Field-Shotgun/Bacterioplankton/Assembly/WWTP_Olsene' --out-prefix 'WWTP_Olsene' -t 36
+
+
