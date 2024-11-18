@@ -7,7 +7,7 @@ library(grDevices)
 library(stringr)  # For text folding
 
 # Load the data
-df <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Field/Shotgun/3_Daphnia_microbiome/KEGG-KOs/KO-pathways-abundances.csv")
+df <- read.csv("//Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Field/Shotgun/3_Daphnia_microbiome/KEGG-KOs/KO-pathways-abundances.csv")
 df = df %>%
   dplyr::filter(Polymer != "PS")
 
@@ -42,20 +42,24 @@ rownames(pathway_conditions) <- df_ordered$Enzyme
 annotation_colors <- list(Pathway = c("Styrene degradation" = "darkgreen", 
                                       "Polycyclic aromatic hydrocarbon degradation" = "yellow"))
 
-# Generate heatmap
+
+# Create the heatmap with larger font sizes to increase the legend appearance
 pheatmap(data_matrix, 
          cluster_rows = FALSE, 
          cluster_cols = FALSE, 
-         color = colorRampPalette(c("white", "darkred"))(100), 
-         display_numbers = TRUE, 
-         fontsize_row = 12,  # Adjust row font size
-         fontsize_col = 14,  # Increase font size for x-axis labels
-         fontsize_number = 12,  # Increase font size inside tiles
+         color = colorRampPalette(c("white", "#ff8080", "darkred"))(100),  # Lighter colors for readability
+         display_numbers = FALSE, 
+         fontsize = 14,  # General font size adjustment (increases legend font as well)
+         fontsize_row = 14,  # Font size for row labels
+         fontsize_col = 16,  # Font size for column labels
+         fontsize_number = 14,  # Font size for numbers inside cells
          number_color = "black",
          border_color = "black",
-         main = "PET degradation pathway",  # Title
-         angle_col = 0,  # Make x-axis labels horizontal
-         fontface_row = "italic")  # Italicize y-axis labels
-
-
-
+         main = "",  # Remove main title if needed
+         angle_col = 0,  # Horizontal x-axis labels
+         fontface_row = "italic",  # Italicize row labels
+         legend_breaks = seq(min(data_matrix), max(data_matrix), length.out = 5),  # Adjust legend ticks if needed
+         legend_labels = round(seq(min(data_matrix), max(data_matrix), length.out = 5), 0),  # Rounded legend labels for clarity
+         legend_position = "left",  # Move color scale to the left
+         width = 15,  # Increase plot width for smaller boxes
+         height = 12)  # Increase plot height for smaller boxes

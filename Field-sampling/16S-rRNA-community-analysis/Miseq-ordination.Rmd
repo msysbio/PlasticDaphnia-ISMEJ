@@ -9,6 +9,7 @@ library(reshape2)
 library(ggpubr)
 library(ggplot2)
 library(dplyr)
+library(patchwork)
 ```
 
 
@@ -57,13 +58,13 @@ Fig3A = plot_ordination(ps_filtered, PCoA, color = "Type") +
   scale_color_manual(values = colors) +  # Apply custom color scheme
   scale_shape_manual(values = c(16,1,4)) +  # Custom shapes for each location
   labs(title = "", 
-       x = paste0("PCoA1: ",round(PCoA$CA$eig[1]/sum(PCoA$CA$eig)*100), "%"),
-       y = paste0("PCoA2: ",round(PCoA$CA$eig[2]/sum(PCoA$CA$eig)*100), "%" ),
+       x = paste0("PCoA1: ",round(PCoA$CA$eig[1]/sum(PCoA$CA$eig)*100,1), "%"),
+       y = paste0("PCoA2: ",round(PCoA$CA$eig[2]/sum(PCoA$CA$eig)*100,1), "%" ),
        color = "Sample Type", 
        shape = "Location") +  # Update labels
   theme_pubr()+  # Minimal theme
-  theme(legend.text = element_text(size = 10),
-        legend.title = element_text(size = 8),
+  theme(legend.text = element_text(size = 11),
+        legend.title = element_text(size = 10),
         legend.key.size = unit(1, "cm"))
 Fig3A
 
@@ -120,8 +121,8 @@ sample_data(ps_filtered_bac) = meta
 tab$Category = meta$Category
 
 
-#Chao1
-print(t.test(chao1~Category, data=tab)) # p-value = 0.5491
+#Observed
+print(t.test(observed~Category, data=tab)) # p-value = 0.5089
 
 #Shannon
 print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.2106
@@ -130,16 +131,16 @@ print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.2106
 print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.282
 
 
-###Chao1
-p.chao1 <- microbiome::boxplot_alpha(ps_filtered_bac, 
-                           index = "Chao1",
+###Observed
+p.observed <- microbiome::boxplot_alpha(ps_filtered_bac, 
+                           index = "observed",
                            x_var = "Category",
                            fill.colors = c("Natural pond" = "blue", 
                                            "Urban pond" = "red"))
 
 
-p.chao1 <- p.chao1 + theme_pubr() + 
-  labs(x="", y="Chao1") +
+p.observed <- p.observed + theme_pubr() + 
+  labs(x="", y="Observed richness") +
   theme(axis.text = element_text(size=12),
         axis.title = element_text(size=16),
         legend.position = "none") # This line removes the legend
@@ -175,11 +176,11 @@ p.Pielou <- p.Pielou + theme_pubr() +
         legend.position = "none") # This line removes the legend
 
 #####Combine in one plot
-p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined <- p.observed / p.shannon / p.Pielou
 p_combined
 
 Sup_Fig3A=p_combined + 
-  plot_annotation(title = "Diversity Indices Comparison: Bacterioplankton") +
+  plot_annotation(title = "Bacterioplankton") +
   plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
 Sup_Fig3A
 
@@ -294,7 +295,7 @@ data_for_plot <- data.frame(PCoA1 = PCoA_coords$sites[, 1],
 
 # Create the ggplot
 Fig3C <- ggplot(data_for_plot, aes(x = PCoA1, y = PCoA2, color = Category)) +
-  geom_point(size = 5) +  # Size and shape for the points
+  geom_point(size = 8) +  # Size and shape for the points
   scale_color_manual(values = colors) +  # Apply your custom color scheme
   labs(title = "", 
        x = paste0("PCoA1: ", x_var, "%"),
@@ -302,7 +303,7 @@ Fig3C <- ggplot(data_for_plot, aes(x = PCoA1, y = PCoA2, color = Category)) +
        color = "Bacterioplankton", 
        shape = "Location") +  # Update labels
   theme_pubr() +  # Minimal theme
-  theme(legend.text = element_text(size = 10),  # Adjust legend text size
+  theme(legend.text = element_text(size = 11),  # Adjust legend text size
         legend.title = element_text(size = 12),  # Adjust legend title size
         legend.key.size = unit(1, "cm"),  # Adjust legend key size
         legend.position = c(0.05, 0.95),  # Move legend to top-left corner (relative coordinates)
@@ -444,8 +445,8 @@ sample_data(ps_rarified_dap) = meta
 tab$Category = meta$Category
 
 
-#Chao1
-print(t.test(chao1~Category, data=tab)) # p-value = 0.4719
+#Observed
+print(t.test(observed~Category, data=tab)) # p-value = 0.4719
 
 #Shannon
 print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.5582
@@ -454,16 +455,16 @@ print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.5582
 print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.3529
 
 
-###Chao1
-p.chao1 <- microbiome::boxplot_alpha(ps_rarified_dap, 
-                           index = "Chao1",
+###Observed
+p.observed <- microbiome::boxplot_alpha(ps_rarified_dap, 
+                           index = "observed",
                            x_var = "Category",
                            fill.colors = c("Natural pond" = "blue", 
                                            "Urban pond" = "red"))
 
 
-p.chao1 <- p.chao1 + theme_pubr() + 
-  labs(x="", y="Chao1") +
+p.observed <- p.observed + theme_pubr() + 
+  labs(x="", y="Obs.Richness") +
   theme(axis.text = element_text(size=12),
         axis.title = element_text(size=16),
         legend.position = "none") # This line removes the legend
@@ -499,11 +500,11 @@ p.Pielou <- p.Pielou + theme_pubr() +
         legend.position = "none") # This line removes the legend
 
 #####Combine in one plot
-p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined <- p.observed / p.shannon / p.Pielou
 p_combined
 
 Sup_Fig3B=p_combined + 
-  plot_annotation(title = "Diversity Indices Comparison: Daphnia microbiome") +
+  plot_annotation(title = "Daphnia microbiome") +
   plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
 Sup_Fig3B
 ```
@@ -517,9 +518,8 @@ figure <- ggarrange(Sup_Fig3A,Sup_Fig3B,
                     labels = c("A", "B"),
                     ncol = 2, nrow = 1)
 figure
-ggsave(filename='Figure3ABCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Figures',device='tiff')
+ggsave(filename='Figure3ABCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/Figures',device='tiff')
 ```
-
 
 ```{r}
 ps_filtered_dap.genus <- tax_glom(ps_rarified_dap, taxrank = "Genus")
@@ -620,7 +620,7 @@ data_for_plot <- data.frame(PCoA1 = PCoA_coords$sites[, 1],
                             Category = as.factor(sample_data$Category))  # Ensure 'Category' is a factor
  
 Fig3D <- ggplot(data_for_plot, aes(x = PCoA1, y = PCoA2, color = Category)) +
-  geom_point(size = 5) +  # Size and shape for the points
+  geom_point(size = 8) +  # Size and shape for the points
   scale_color_manual(values = colors) +  # Apply your custom color scheme
   labs(title = "", 
        x = paste0("PCoA1: ", x_var, "%"),
@@ -628,12 +628,13 @@ Fig3D <- ggplot(data_for_plot, aes(x = PCoA1, y = PCoA2, color = Category)) +
        color = "Daphnia microbiome", 
        shape = "Location") +  # Update labels
   theme_pubr() +  # Minimal theme
-  theme(legend.text = element_text(size = 10),  # Adjust legend text size
+  theme(legend.text = element_text(size = 11),  # Adjust legend text size
         legend.title = element_text(size = 12),  # Adjust legend title size
         legend.key.size = unit(1, "cm"),  # Adjust legend key size
-        legend.position = c(0.05, 1.1),  # Move legend closer to the top (y = 1)
+        legend.position = c(0.05, 0.95),  # Move legend closer to the top (y = 1)
         legend.justification = c("left", "top"))  # Anchor the legend to the top-left corner
 Fig3D
+
 ```
 
 Load envirionmental information:
@@ -748,21 +749,21 @@ tab <-microbiome::alpha(ps_filtered, index = "all")
 meta <- data.frame(sample_data(ps_filtered)) #Accessing my sample information from the ps object containing rarefied data
 tab$Type = meta$Type
 
-###Chao1
-p.chao1 <- microbiome::boxplot_alpha(ps_filtered, 
-                           index = "Chao1",
+###Observed richness
+p.observed <- microbiome::boxplot_alpha(ps_filtered, 
+                           index = "observed",
                            x_var = "Type",
                            fill.colors = c("Bacterioplankton" = "#b3669e", 
                                            "Daphnia" = "#98984d"))
 
 
-p.chao1 <- p.chao1 + theme_pubr() + 
-  labs(x="", y="Chao1") +
+p.observed <- p.observed + theme_pubr() + 
+  labs(x="", y="Obs. Richness") +
   theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
+        axis.title = element_text(size=12),
         legend.position = "none") # This line removes the legend
 
-p.chao1
+p.observed
 print(wilcox.test(chao1~Type, data=tab)) # p-value = 3.448e-12
 #####Shannon
 
@@ -776,7 +777,7 @@ p.shannon <- microbiome::boxplot_alpha(ps_filtered,
 p.shannon <- p.shannon + theme_pubr() + 
   labs(x="", y="Shannnon") +
   theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
+        axis.title = element_text(size=12),
         legend.position = "none") # This line removes the legend
 
 p.shannon
@@ -795,14 +796,14 @@ p.Pielou <- microbiome::boxplot_alpha(ps_filtered,
 p.Pielou <- p.Pielou + theme_pubr() + 
   labs(x="", y="Pielou") +
   theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
+        axis.title = element_text(size=12),
         legend.position = "none") # This line removes the legend
 
 p.Pielou
 print(wilcox.test(evenness_pielou~Type, data=tab)) # p-value = 3.527e-08
 
 #####Combine in one plot
-p_combined <- p.chao1 / p.shannon / p.Pielou
+p_combined <- p.observed / p.shannon / p.Pielou
 p_combined
 Fig3B=p_combined + 
   plot_annotation(title = "") +
@@ -816,164 +817,14 @@ figure <- ggarrange(Fig3A,Fig3B,Fig3C,Fig3D,
                     labels = c("A", "B","C","D"),
                     ncol = 2, nrow = 2)
 figure
-ggsave(filename='Figure3ABCDCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/Figures',device='tiff',width=15, height = 10)
+ggsave(
+  filename = 'Figure3ABCDCombined.tiff',
+  path = '/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/Figures',
+  device = 'tiff',
+  width = 15, 
+  height = 10,
+  units = 'in',      # Ensure width and height are in inches
+  dpi = 300          # Set DPI to 300 or higher for high-quality print output
+)
+
 ```
-
-BACTERIOPLANKTON:
-
-```{r}
-library(BiocManager)
-library(microbiome)
-library(knitr)
-library(ggpubr)
-#install.packages("patchwork")
-library(patchwork)
-
-tab <-microbiome::alpha(ps_filtered_bac, index = "all")
-meta <- data.frame(sample_data(ps_filtered_bac)) #Accessing my sample information from the ps object containing rarefied data
-tab$Category = meta$Category
-
-
-###Chao1
-p.chao1 <- boxplot_alpha(ps_filtered_bac, 
-                           index = "Chao1",
-                           x_var = "Category",
-                           fill.colors = c("Natural pond" = "#6885d0", 
-                                           "Artifical pond" = "#cb5658"))
-
-
-p.chao1 <- p.chao1 + theme_pubr() + 
-  labs(x="", y="Chao1") +
-  theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
-        legend.position = "none") # This line removes the legend
-
-p.chao1
-print(t.test(chao1~Category, data=tab)) # p-value = 0.5491
-
-
-#####Shannon
-
-p.shannon <- boxplot_alpha(ps_filtered_bac, 
-                           index = "diversity_shannon",
-                           x_var = "Category",
-                           fill.colors = c("Natural pond" = "#6885d0", 
-                                           "Artifical pond" = "#cb5658"))
-
-
-p.shannon <- p.shannon + theme_pubr() + 
-  labs(x="", y="Shannnon") +
-  theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
-        legend.position = "none") # This line removes the legend
-
-p.shannon
-print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.2106
-
-
-#####Pielou
-
-p.Pielou <- boxplot_alpha(ps_filtered_bac, 
-                           index = "evenness_pielou",
-                           x_var = "Category",
-                           fill.colors = c("Natural pond" = "#6885d0", 
-                                           "Artifical pond" = "#cb5658"))
-
-
-p.Pielou <- p.Pielou + theme_pubr() + 
-  labs(x="", y="Pielou") +
-  theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
-        legend.position = "none") # This line removes the legend
-
-p.Pielou
-print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.282
-
-#####Combine in one plot
-p_combined <- p.chao1 / p.shannon / p.Pielou
-p_combined
-# Optionally, if you want to add a common title or adjust spacing, you can do:
-p_combined + 
-  plot_annotation(title = "Diversity Indices Comparison for Bacterioplantkon samples") +
-  plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
-```
-
-MICROBIOME:
-
-```{r}
-library(BiocManager)
-library(microbiome)
-library(knitr)
-library(ggpubr)
-#install.packages("patchwork")
-library(patchwork)
-
-tab <-microbiome::alpha(ps_rarified_dap, index = "all")
-meta <- data.frame(sample_data(ps_rarified_dap)) #Accessing my sample information from the ps object containing rarefied data
-tab$Category = meta$Category
-
-
-###Chao1
-p.chao1 <- boxplot_alpha(ps_rarified_dap, 
-                           index = "Chao1",
-                           x_var = "Category",
-                           fill.colors = c("Natural pond" = "#6885d0", 
-                                           "Artifical pond" = "#cb5658"))
-
-
-p.chao1 <- p.chao1 + theme_pubr() + 
-  labs(x="", y="Chao1") +
-  theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
-        legend.position = "none") # This line removes the legend
-
-p.chao1
-print(t.test(chao1~Category, data=tab)) # p-value = 0.4719
-
-
-#####Shannon
-
-p.shannon <- boxplot_alpha(ps_rarified_dap, 
-                           index = "diversity_shannon",
-                           x_var = "Category",
-                           fill.colors = c("Natural pond" = "#6885d0", 
-                                           "Artifical pond" = "#cb5658"))
-
-
-p.shannon <- p.shannon + theme_pubr() + 
-  labs(x="", y="Shannnon") +
-  theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
-        legend.position = "none") # This line removes the legend
-
-p.shannon
-print(t.test(diversity_shannon~Category, data=tab)) # p-value = 0.5582
-
-
-#####Pielou
-
-p.Pielou <- boxplot_alpha(ps_rarified_dap, 
-                           index = "evenness_pielou",
-                           x_var = "Category",
-                           fill.colors = c("Natural pond" = "#6885d0", 
-                                           "Artifical pond" = "#cb5658"))
-
-
-p.Pielou <- p.Pielou + theme_pubr() + 
-  labs(x="", y="Pielou") +
-  theme(axis.text = element_text(size=12),
-        axis.title = element_text(size=16),
-        legend.position = "none") # This line removes the legend
-
-p.Pielou
-print(t.test(evenness_pielou~Category, data=tab)) # p-value = 0.3529
-
-#####Combine in one plot
-p_combined <- p.chao1 / p.shannon / p.Pielou
-p_combined
-# Optionally, if you want to add a common title or adjust spacing, you can do:
-p_combined + 
-  plot_annotation(title = "Diversity Indices Comparison for Microbiome samples") +
-  plot_layout(guides = 'collect') # This collects and positions the legends together if applicable
-```
-

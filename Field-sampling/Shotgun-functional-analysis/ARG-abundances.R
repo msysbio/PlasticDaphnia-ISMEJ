@@ -5,7 +5,7 @@ library(dplyr)
 
 ###ARGs abundances comparison
 # Load the data
-df <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/tables/Fields shotgun/ARG_abundances.csv",row.names=1)
+df <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/tables/Fields shotgun/ARG_abundances.csv",row.names=1)
 
 # Transform data from wide to long format
 long_data <- gather(df, Key, Value, -Category)
@@ -28,7 +28,7 @@ boxplot_chart <- ggplot(long_data, aes(x=Category, y=Value, fill=Category)) +
   # Jitter to overlay individual points
   geom_jitter(aes(color=Category), width=0.2, size=2, alpha=0.7) +
   # Labels and styling
-  labs(y="Average CPM per Pond Category", x="Pond Category") +
+  labs(y="Average CPM per pond ategory", x="Pond category") +
   scale_fill_manual(values=colors) +  # Fill color for the boxes
   scale_color_manual(values=colors) +  # Color for the dots
   theme_pubr() +  # Optionally, use theme_minimal() for a clean look
@@ -59,8 +59,10 @@ effect_size_result <- wilcox_effsize(Average.ARG.abundance ~ Category, data = df
 print(effect_size_result)
 
 # Replace 'path_to_your_file.csv' with the actual path to your CSV file
-df <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Field_data/tables/Average_ARGs_per_sample.csv")
+df <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Field_data/tables/Average_ARGs_per_sample.csv")
 
+# Update "St.Donatus" to "St. Donatus" in the Location column of df
+df$Location <- gsub("St.Donatus", "St. Donatus", df$Location)
 # Ensure the Category column uses proper names
 df$Category <- recode(df$Category, "Low" = "Low MPs", "High" = "High MPs")
 
@@ -71,7 +73,7 @@ boxplot_chart <- ggplot(df, aes(x=Location, y=Mean.adjCMR, fill=Category)) +
   # Jitter to overlay individual points
   geom_jitter(aes(color=Category), width=0.2, size=2, alpha=0.7) +
   # Labels and styling
-  labs(y="Average CPM per Location", x="Location") +
+  labs(y="Average CPM per location", x="Location") +
   scale_fill_manual(values=c("Low MPs" = "#6885d0", "High MPs" = "#cb5658")) +  # Color by Category
   scale_color_manual(values=c("Low MPs" = "#6885d0", "High MPs" = "#cb5658")) +  # Color dots by Category
   theme_pubr() +  # Optionally, use theme_minimal() for a clean look

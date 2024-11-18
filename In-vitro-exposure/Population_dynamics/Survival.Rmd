@@ -1,0 +1,302 @@
+---
+title: "Survival analysis"
+output: html_notebook
+---
+Package import
+```{r}
+library(lme4)
+library(lmerTest)
+library (pbkrtest)
+library(dplyr)
+library(ggplot2)
+library("ggpubr")
+library("multcomp")
+library(car)
+library(emmeans)
+
+### Packages needed for survival plot ###
+
+library(survival)
+library(tidyverse)
+library(knitr)
+#install.packages("survminer")
+library(survminer)
+#install.packages("performance")
+library(performance)
+```
+
+Import data
+
+```{r}
+### Setting working directory ###
+data_survival = read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Johanna's_data/statistics/Excel/Survivaldata151721.csv", header = TRUE, sep=",")
+data_survival$Pond <- as.factor(data_survival$Pond)
+data_survival$Clone <- as.factor(data_survival$Clone)
+data_survival$Fiber <- as.factor(data_survival$Fiber)
+data_survival$Replicate <- as.factor(data_survival$Replicate)
+```
+
+Overall Survival Trends: How does survival probability change over time for Daphnia across different conditions? 
+
+```{r}
+# Transform data to long format
+data_long <- pivot_longer(data_survival,
+                          cols = starts_with("Time"),
+                          names_to = "Time_Point",
+                          names_prefix = "Time_",
+                          values_to = "Time")
+
+data_status_long <- pivot_longer(data_survival,
+                                 cols = starts_with("Status"),
+                                 names_to = "Status_Point",
+                                 names_prefix = "Status_",
+                                 values_to = "Status")
+
+
+# Combine the time and status into one dataframe
+data_long <- data_survival %>%
+  pivot_longer(
+    cols = matches("^(Time|Status)_\\d+$"), # Match both Time and Status columns
+    names_to = c(".value", "Time_Point"),   # Split the column names into two parts
+    names_pattern = "(.*_)(\\d+)$"          # Regex pattern to split the column name into 'Time/Status' and 'Time Point'
+  )
+
+
+# Create the survival object
+Surv_Obj <- with(data_long, Surv(Time_, Status_))
+
+# Fit Kaplan-Meier survival curves (general survival)
+km_fit <- survfit(Surv_Obj ~ 1)
+ggsurvplot(km_fit, data = data_long, xlab = "Days", ylab = "Survival Probability")
+
+# Plot survival curves by Pond
+km_fit_pond <- survfit(Surv_Obj ~ data_long$Pond)
+ggsurvplot(km_fit_pond, data = data_long, xlab = "Days", ylab = "Survival Probability", palette = "Dark2",pval=TRUE,conf.int = TRUE,pval.method = TRUE)
+summary(km_fit_pond)
+
+###Perform log-rank test between ponds:
+# Perform log-rank test comparing survival between BP and DG ponds
+logrank_test <- survdiff(Surv_Obj ~ data_long$Pond)
+# Display the log-rank test results
+logrank_test
+
+"
+Call:
+survdiff(formula = Surv_Obj ~ data_long$Pond)
+
+                     N Observed Expected (O-E)^2/E (O-E)^2/V
+data_long$Pond=BP 1440      329      360      2.73      6.28
+data_long$Pond=DG 1440      400      369      2.66      6.28
+
+ Chisq= 6.3  on 1 degrees of freedom, p= 0.01 
+"
+
+# Plot survival curves by Fiber
+km_fit_pond <- survfit(Surv_Obj ~ data_long$Fiber)
+ggsurvplot(km_fit_pond, 
+           data = data_long, 
+           xlab = "Time (days)", 
+           ylab = "Survival probability", 
+           palette = "Dark2",
+           pval = TRUE,
+           conf.int = TRUE,
+           pval.method = TRUE,
+           ggtheme = theme_pubr() + theme(legend.text = element_text(size = 12),
+              axis.title = element_text(size = 16, face = "plain"),  # Non-bold axis labels, larger font
+              axis.text = element_text(size = 14),  # Increase tick label size
+              plot.title = element_text(size = 18, hjust = 0.5)))  # Center and increase title size if you add one))  # Adjust legend size here
+
+summary(km_fit_pond)
+
+# Plot survival curves by Clone
+km_fit_pond <- survfit(Surv_Obj ~ data_long$Clone)
+ggsurvplot(km_fit_pond, data = data_long, xlab = "Days", ylab = "Survival Probability", palette = "Dark2",pval=TRUE,conf.int = TRUE,pval.method = TRUE)
+summary(km_fit_pond)
+
+# Plot survival curves by Pond
+km_fit_pond <- survfit(Surv_Obj ~ data_long$Pond)
+ggsurvplot(km_fit_pond, data = data_long, xlab = "Days", ylab = "Survival Probability", palette = "Dark2",pval=TRUE,conf.int = TRUE,pval.method = TRUE)
+summary(km_fit_pond)
+
+# Plot survival curves (combined: Pond + Fiber)
+km_fit_pond <- survfit(Surv_Obj ~ data_long$Pond+data_long$Fiber)
+ggsurvplot(km_fit_pond, data = data_long, xlab = "Days", ylab = "Survival Probability", palette = "Dark2",pval=TRUE,conf.int = TRUE,pval.method = TRUE)
+summary(km_fit_pond)
+
+#Survival on the last day measured (21)
+surv_summary <- summary(km_fit_pond, times = 21)
+
+# Convert the summary to a data frame
+surv_data <- data.frame(
+  time = surv_summary$time,
+  n.risk = surv_summary$n.risk,
+  n.event = surv_summary$n.event,
+  survival = surv_summary$surv,
+  strata = surv_summary$strata
+)
+
+# Clean up the strata names
+surv_data$strata <- gsub("data_long\\$Pond=", "", surv_data$strata)
+surv_data$strata <- gsub("data_long\\$Fiber=", "", surv_data$strata)
+surv_data$strata <- gsub("\\.", " x ", surv_data$strata)
+surv_data$strata <- gsub("NO", "Control", surv_data$strata)
+
+# View the survival probabilities at day 21
+print(surv_data)
+
+#write.csv(surv_data,'/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/Population_analysis/Survival_day_21.csv')
+
+# Create the bar plot
+bar_plot <- ggplot(surv_data, aes(x = strata, y = survival, fill = strata)) +
+  geom_bar(stat = "identity", width = 0.7) +
+  ylim(0, 1) +
+  labs(
+    title = "Survival Probability at Day 21",
+    x = "Group",
+    y = "Survival Probability"
+  ) +
+  theme_pubr() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+
+```
+
+Make survival curve more clear
+
+```{r}
+# Extract survival probabilities at specific time points
+surv_summary <- summary(km_fit_pond, times = c(15, 17, 19, 21))
+
+# Create a data frame with survival probabilities at each time point
+surv_prob_data <- data.frame(
+  time = surv_summary$time,
+  strata = surv_summary$strata,
+  survival = surv_summary$surv
+)
+
+# Clean up strata names
+surv_prob_data$strata <- gsub("data_long\\$Pond=", "", surv_prob_data$strata)
+surv_prob_data$strata <- gsub("data_long\\$Fiber=", "", surv_prob_data$strata)
+surv_prob_data$strata <- gsub("\\.", " x ", surv_prob_data$strata)
+
+# View the formatted survival probabilities
+print(surv_prob_data)
+
+# Pivot the data so each row is a group, and each column is a time point
+surv_prob_table <- surv_prob_data %>%
+  pivot_wider(names_from = time, values_from = survival) %>%
+  rename_with(~paste0("Day ", .), -strata)  # Rename columns for better labeling
+
+# View the survival probability table
+print(surv_prob_table)
+
+# Function to create the custom table for survival probabilities
+surv_prob_custom_table <- function(surv_prob_table) {
+  ggtexttable(
+    surv_prob_table,
+    rows = NULL,                          # No row names (keep it clean)
+    theme = ttheme("minimal", base_size = 10)  # Simple table theme
+  )
+}
+
+# Generate the survival plot without the risk table
+surv_plot <- ggsurvplot(
+  km_fit_pond,
+  data = data_long,
+  xlab = "Days",
+  ylab = "Survival probability",
+  palette = "Dark2",
+  pval = TRUE,
+  conf.int = TRUE,
+  risk.table = FALSE,                     # Disable the default risk table
+  surv.median.line = "hv",                # Add median survival line
+  censor.shape = 124,
+  censor.size = 2,
+           ggtheme = theme_pubr() + theme(legend.text = element_text(size = 12),
+              axis.title = element_text(size = 16, face = "plain"),  # Non-bold axis labels, larger font
+              axis.text = element_text(size = 14),  # Increase tick label size
+              plot.title = element_text(size = 18, hjust = 0.5)),
+  legend.title = "Group",
+  legend.labs = levels(data_long$Group),
+  break.time.by = 5,
+  xlim = c(0, 21),
+  font.x = c(12, "bold"),
+  font.y = c(12, "bold"),
+  font.tickslab = c(10, "bold")
+)
+
+surv_plot <- ggsurvplot(km_fit_pond, 
+           data = data_long, 
+           xlab = "Time (days)", 
+           ylab = "Survival probability", 
+           palette = "Dark2",
+           pval = TRUE,
+           conf.int = TRUE,
+           pval.method = TRUE,
+           ggtheme = theme_pubr() + theme(legend.text = element_text(size = 12),
+              axis.title = element_text(size = 16, face = "plain"),  # Non-bold axis labels, larger font
+              axis.text = element_text(size = 14),  # Increase tick label size
+              plot.title = element_text(size = 18, hjust = 0.5)))
+
+
+# Round probabilities to two decimal places
+surv_prob_table <- surv_prob_table %>%
+  mutate(across(where(is.numeric), ~ round(.x, 2)))  # Round all numeric columns to 2 decimal places
+
+# Then, plot the customized table
+custom_table <- surv_prob_custom_table(surv_prob_table) + 
+                theme(text = element_text(size = 14))  # Adjust table text size
+
+# Combine the survival plot and custom table with adjusted heights
+combined_plot <- plot_grid(
+  surv_plot$plot, custom_table, ncol = 1, rel_heights = c(3, 1.2)  # Increase the height ratio for the table
+)
+
+# Display the combined plot
+print(combined_plot)
+
+
+```
+
+
+Hazard ratio
+```{r}
+cox_model <- coxph(Surv_Obj ~ Pond + Clone + Fiber + strata(Replicate), data = data_long)
+summary(cox_model)
+
+
+#PLOT
+library(broom)
+cox_summary <- broom::tidy(cox_model, conf.int = TRUE)
+
+# Calculate Hazard Ratios (HR) and Confidence Intervals
+cox_summary <- cox_summary %>%
+  mutate(
+    HR = exp(estimate),                         # Convert log hazard ratios to hazard ratios
+    HR_lower = exp(conf.low),                   # Lower bound of CI for HR
+    HR_upper = exp(conf.high)                   # Upper bound of CI for HR
+  )
+
+# View the summary table
+print(cox_summary)
+
+# Create the forest plot
+forest_plot <- ggplot(cox_summary, aes(x = term, y = HR)) +
+  geom_point(size = 3) +                           # Plot points for hazard ratios
+  geom_errorbar(aes(ymin = HR_lower, ymax = HR_upper), width = 0.2) +  # Add error bars for CIs
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +     # Add reference line at HR = 1
+  coord_flip() +                                   # Flip coordinates for better readability
+  labs(
+    title = "Forest Plot of Cox Proportional Hazards Model",
+    x = "Covariate",
+    y = "Hazard Ratio (95% CI)"
+  ) +
+  theme_minimal()                                  # Apply a minimal theme
+
+# Print the plot
+print(forest_plot)
+
+```
+

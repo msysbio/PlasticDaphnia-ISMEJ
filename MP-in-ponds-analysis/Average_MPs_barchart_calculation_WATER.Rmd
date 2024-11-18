@@ -62,6 +62,21 @@ Fig2C=ggplot(plas_filtered, aes(x = Pond.Category, y = plas_per_milliliter, fill
   theme_pubr() + # Use a minimal theme
   theme(legend.position = "none") # Remove the legend
 Fig2C
+
+#Improved visuals:
+ggplot(plas_filtered, aes(x = Pond.Category, y = plas_per_milliliter, fill = Pond.Category)) +
+  geom_boxplot(outlier.shape = NA) + # Boxplot without outliers (dots will represent individual points)
+  geom_jitter(color = "black", width = 0.2, size = 1.5, alpha = 0.6) + # Dot overlay (jitter)
+  scale_fill_manual(values = c("City pond" = "#cb5658", "Natural pond" = "#6885d0")) +
+  labs(x = "", y = "MPs per mL of pond water", title = "Pond water samples") +
+  theme_pubr() + # Use a minimal theme
+  theme(
+    axis.text = element_text(size = 15),    # Larger axis tick labels
+    axis.title = element_text(size = 14),   # Larger axis title
+    plot.title = element_text(size = 16),   # Larger plot title
+    legend.position = "none",
+    axis.line = element_line(linewidth = 0.8)         # Thicker x and y axis lines
+    )
 ```
 
 
@@ -125,7 +140,7 @@ ggplot(plas_filtered_averaged, aes(x = Location, y = mean, fill = Category)) +
 ```
 MICROPLASTICS COMPOSITIONS-WATER
 ```{r}
-plas <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/0_REBBUTAL/10_Scripts/files/tables/MPs_measurment-Water.csv")
+plas <- read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/0_REBBUTAL/10_Scripts/tables/MPs_measurment-Water.csv")
 plas_norm= plas %>%
   dplyr::select(PE_PP,PS,PET_polyester) %>%
   mutate(./150) %>% #Change to MPs per LITER
@@ -163,15 +178,34 @@ Fig2D=ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
 Fig2D
 
 # Create the box plot with dot overlay
+Fig2D=ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
+  geom_boxplot(outlier.shape = NA) +  # Box plot without outliers
+  geom_jitter(color = "black", width = 0.2, size = 1.5, alpha = 0.6) + # Dot overlay (jitter)
+  scale_y_log10() +  # Logarithmic y-axis to handle skewed data
+  scale_fill_manual(values = c("Artificial pond" = "#cb5658", "Natural pond" = "#6885d0")) +  # Custom colors for categories
+  labs(x = "Polymer type", y = "Log10 MPs number per mL of pond water", title = "") +
+  theme_pubr() +
+  theme(axis.text.x = element_text(vjust = 0.5, hjust=1),
+        legend.position = "none")  # Removes the legend
+Fig2D
+
+#Improved visuals
+#Improved visuals
 ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
   geom_boxplot(outlier.shape = NA) +  # Box plot without outliers
   geom_jitter(color = "black", width = 0.2, size = 1.5, alpha = 0.6) + # Dot overlay (jitter)
   scale_y_log10() +  # Logarithmic y-axis to handle skewed data
   scale_fill_manual(values = c("Artificial pond" = "#cb5658", "Natural pond" = "#6885d0")) +  # Custom colors for categories
-  labs(x = "Polymer type", y = "Log10 MPs number per gram of sediment", title = "") +
+  labs(x = "Polymer type", y = "Log10 MPs number per mL of pond water", title = "") +
   theme_pubr() +
-  theme(axis.text.x = element_text(vjust = 0.5, hjust=1),
-        legend.position = "none")  # Removes the legend
+  theme(
+    axis.text = element_text(size = 15),    # Larger axis tick labels
+    axis.title = element_text(size = 14),   # Larger axis title
+    plot.title = element_text(size = 16),   # Larger plot title
+    legend.position = "none",
+    axis.line = element_line(linewidth = 0.8)         # Thicker x and y axis lines
+    )
+
 ```
 Combine plots into one:
 ```{r}
@@ -179,6 +213,6 @@ figure <- ggarrange(Fig2C,Fig2D,
                     labels = c("C", "D"),
                     ncol = 2, nrow = 1)
 figure
-ggsave(filename='Figure2CDCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/Review/Rebbutal/Figures',device='tiff')
+ggsave(filename='Figure2CDCombined.tiff',path='/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/Doctorate/Publication/Review/Rebbutal/Figures',device='tiff')
 ```
 

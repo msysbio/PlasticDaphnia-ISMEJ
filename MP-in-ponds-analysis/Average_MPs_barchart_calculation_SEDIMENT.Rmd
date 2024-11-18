@@ -54,9 +54,25 @@ ggplot(plas_filtered, aes(x = Pond.Category, y = Total_MPs_per_gram, fill = Pond
   geom_boxplot(outlier.shape = NA) + # Boxplot without outliers (dots will represent individual points)
   geom_jitter(color = "black", width = 0.2, size = 1.5, alpha = 0.6) + # Dot overlay (jitter)
   scale_fill_manual(values = c("City pond" = "#cb5658", "Natural pond" = "#6885d0")) +
-  labs(x = "", y = "MPs per gram of Sediment", title = "Pond sediment samples") +
+  labs(x = "", y = "MPs per gram of sediment", title = "Pond sediment samples") +
   theme_pubr() + # Use a minimal theme
   theme(legend.position = "none") # Remove the legend
+
+
+#Improved visuals:
+ggplot(plas_filtered, aes(x = Pond.Category, y = Total_MPs_per_gram, fill = Pond.Category)) +
+  geom_boxplot(outlier.shape = NA) + # Boxplot without outliers (dots will represent individual points)
+  geom_jitter(color = "black", width = 0.2, size = 2, alpha = 0.6) + # Larger dots for jitter
+  scale_fill_manual(values = c("City pond" = "#cb5658", "Natural pond" = "#6885d0")) +
+  labs(x = "", y = "MPs per gram of sediment", title = "Pond sediment samples") +
+  theme_pubr() +
+  theme(
+    axis.text = element_text(size = 15),    # Larger axis tick labels
+    axis.title = element_text(size = 14),   # Larger axis title
+    plot.title = element_text(size = 16),   # Larger plot title
+    legend.position = "none",
+    axis.line = element_line(linewidth = 0.8)         # Thicker x and y axis lines
+    )
 ```
 
 
@@ -176,5 +192,21 @@ ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
   theme_pubr() +
   theme(axis.text.x = element_text(vjust = 0.5, hjust=1),
         legend.position = "none")  # Removes the legend
+
+#Improved visuals
+ggplot(plas_norm, aes(x = variable, y = value, fill = Category)) +
+  geom_boxplot(outlier.shape = NA) +  # Box plot without outliers
+  geom_jitter(color = "black", width = 0.2, size = 1.5, alpha = 0.6) + # Dot overlay (jitter)
+  scale_y_log10() +  # Logarithmic y-axis to handle skewed data
+  scale_fill_manual(values = c("High MPs" = "#cb5658", "Low MPs" = "#6885d0")) +  # Custom colors for categories
+  labs(x = "Polymer type", y = "Log10 MPs number per gram of sediment", title = "") +
+  theme_pubr() +
+  theme(
+    axis.text = element_text(size = 15),    # Larger axis tick labels
+    axis.title = element_text(size = 14),   # Larger axis title
+    plot.title = element_text(size = 16),   # Larger plot title
+    legend.position = "none",
+    axis.line = element_line(linewidth = 0.8)         # Thicker x and y axis lines
+    )
 ```
 

@@ -126,12 +126,12 @@ variance_explained <- eigenvalues / sum(eigenvalues) * 100
 
 # Update plot to show variance captured by PCoA1 and PCoA2
 Fig7A = plot_ordination(subset_phyloseq, PCoA_result, color = "Plastic_presence", shape = "Plastic") +  
-  geom_point(size = 3) +  
+  geom_point(size = 8) +  
   scale_shape_manual(values = c(4, 16, 2, 7), 
                      labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
   labs(title = expression(italic("Daphnia magna") * "+ community composition post-exposure in BP-inoculum"), 
-       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
-       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       x = paste0("PCoA1 (", round(variance_explained[1], 1), "%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 1), ".0%)"),  # PCoA2 with variance
        color = "MPs presence",
        shape = "MP type") +  # Updated shape legend label
   theme_pubr()
@@ -192,12 +192,12 @@ variance_explained <- eigenvalues / sum(eigenvalues) * 100
 
 # Update plot to show variance captured by PCoA1 and PCoA2
 Fig7B = plot_ordination(subset_phyloseq, PCoA_result, color = "Plastic_presence", shape = "Plastic") +  
-  geom_point(size = 3) +  
+  geom_point(size = 8) +  
   scale_shape_manual(values = c(4, 16, 2, 7), 
                      labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
   labs(title = expression(italic("Daphnia magna") * " community composition post-exposure in DG-inoculum"), 
-       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
-       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       x = paste0("PCoA1 (", round(variance_explained[1], 1), "%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 1), "%)"),  # PCoA2 with variance
        color = "MPs presence",
        shape = "MP type") +  # Updated shape legend label
   theme_pubr()
@@ -321,12 +321,12 @@ variance_explained <- eigenvalues / sum(eigenvalues) * 100
 
 # Update plot to show variance captured by PCoA1 and PCoA2
 Fig7C=plot_ordination(subset_phyloseq, PCoA_result, color = "Type", shape = "Plastic") +  
-  geom_point(size = 4) +  
+  geom_point(size = 8) +  
   scale_shape_manual(values = c(4, 16, 2, 7), 
                      labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
   labs(title = expression(italic("Daphnia magna") * "+ Bacterioplankton community composition post-exposure in BP-inoculum"), 
-       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
-       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       x = paste0("PCoA1 (", round(variance_explained[1], 1), "%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 1), "%)"),  # PCoA2 with variance
        color = "Type",
        shape = "MP") +  
   theme_pubr() +
@@ -382,12 +382,12 @@ variance_explained <- eigenvalues / sum(eigenvalues) * 100
 
 # Update plot to show variance captured by PCoA1 and PCoA2
 Fig7D=plot_ordination(subset_phyloseq, PCoA_result, color = "Type", shape = "Plastic") +  
-  geom_point(size = 4) +  
+  geom_point(size = 8) +  
   scale_shape_manual(values = c(4, 16, 2, 7), 
                      labels = c("Control", "Nylon", "PET", "PLA")) +  # Rename C to Control in legend
   labs(title = expression(italic("Daphnia magna") * "+ Bacterioplankton community composition post-exposure in DG-inoculum"), 
-       x = paste0("PCoA1 (", round(variance_explained[1], 2), "%)"),  # PCoA1 with variance
-       y = paste0("PCoA2 (", round(variance_explained[2], 2), "%)"),  # PCoA2 with variance
+       x = paste0("PCoA1 (", round(variance_explained[1], 1), ".0%)"),  # PCoA1 with variance
+       y = paste0("PCoA2 (", round(variance_explained[2], 1), "%)"),  # PCoA2 with variance
        color = "Type",
        shape = "MP") +  
   theme_pubr() +

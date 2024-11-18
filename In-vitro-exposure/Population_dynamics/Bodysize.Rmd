@@ -1,0 +1,99 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(dplyr)
+library(tidyverse)
+library(ggpubr)
+```
+
+
+```{r}
+bodysize = read.csv("/Users/u0145079/Library/CloudStorage/OneDrive-KULeuven/Desktop/PlasticDaphnia/Publication/tables/Bodysize.csv")
+```
+
+Did fibre have a significant effect on the body size after 7 days, 14 days or juveniles in the plastic-exposed
+
+```{r}
+# Fit a GLM for each time point
+glm_day7 <- glm(Bodysize_7_days ~ Pond + Clone + Fiber, family = Gamma(link = "log"), data = bodysize)
+glm_day14 <- glm(Bodysize_14_days ~ Pond + Clone + Fiber, family = Gamma(link = "log"), data = bodysize)
+glm_juvenile <- glm(Bodysize_Juvenile ~ Pond + Clone + Fiber, family = Gamma(link = "log"), data = bodysize)
+glm_first_brood <- glm(date_firstbrood ~ Pond + Clone + Fiber, family = poisson(), data = bodysize)
+# Summarize the model results
+summary(glm_day7) #DG is associated with higher bodysize at day 7, Clone F lower body-size than BH
+summary(glm_day14) #Clone F lower bodysize than BH, Nylon decreased body size, PLA decreased body size
+summary(glm_juvenile) #DG was associated with smaller body size of Juvenile, Clone F and CloneKNO higher body mass than BH
+summary(glm_first_brood) #DG was associated with a decreased day of first brood
+```
+
+```{r}
+# Reshaping the data
+df <- bodysize %>%
+  mutate(Fiber = case_when(
+    Fiber == "NO" ~ "Control",
+    TRUE ~ Fiber  # Keeps the original value if it does not match "BP" or "DG"
+  ))
+
+long_df <- df %>%
+  pivot_longer(
+    cols = starts_with("Bodysize"),
+    names_to = "Size_Category",
+    values_to = "Body_Size"
+  )
+
+# Calculating the average body size for each fiber and size category
+average_sizes <- long_df %>%
+  group_by(Fiber, Size_Category) %>%
+  summarize(Average_Size = mean(Body_Size, na.rm = TRUE))
+
+# Plotting
+ggplot(average_sizes, aes(x = Fiber, y = Average_Size, fill = Size_Category)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "",
+       x = "",
+       y = "Average Body Size in μm",
+       fill = "Size Category") +
+  theme_pubr()
+```
+```{r}
+# Filter data where Plastic == "YES"
+# Update 'Fiber' names
+df <- bodysize %>%
+  mutate(Pond = case_when(
+    Pond == "BP" ~ "Blauwe Port",
+    Pond == "DG" ~ "De-Gavers",
+    TRUE ~ Pond  # Keeps the original value if it does not match "BP" or "DG"
+  ))
+
+# Filter data where Plastic == "YES"
+filtered_df <- df %>%
+  filter(Plastic == "YES")
+
+# Reshape the data
+long_df <- filtered_df %>%
+  pivot_longer(
+    cols = starts_with("Bodysize"),
+    names_to = "Size_Category",
+    values_to = "Body_Size"
+  )
+
+# Calculating the average body size for each pond and size category
+average_sizes <- long_df %>%
+  group_by(Pond, Size_Category) %>%
+  summarize(Average_Size = mean(Body_Size, na.rm = TRUE), .groups = 'drop')
+
+# Plotting each size category separately
+ggplot(average_sizes, aes(x = as.factor(Pond), y = Average_Size, fill = as.factor(Pond))) +
+  geom_bar(stat = "identity", position = "dodge") +
+  facet_wrap(~ Size_Category, scales = "free") +
+  labs(title = "Average Body Size by Pond",
+       x = "Pond",
+       y = "Average Body Size in μm",
+       fill = "Pond") +
+  theme_pubr() +  # Applying the publication-ready theme
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
